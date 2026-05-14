@@ -1,0 +1,20 @@
+{
+  "listing_id": "test_001",
+  "listing_price": 5000000,
+  "listing_currency": "RUB",
+  "rooms": 2,
+  "area": 50.0,
+  "kitchen_area": 8.0,
+  "level": 3,
+  "levels": 9,
+  "building_type": "панельный",
+  "object_type": "вторичка",
+  "region": "3",
+  "latitude": 55.7558,
+  "longitude": 37.6173,
+  "street": "Тверская улица",
+  "house": "10",
+  "district": "Тверской",
+  "city": "Москва",
+  "full_address": "Москва, Тверская улица, 10"
+}

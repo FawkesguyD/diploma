@@ -1,0 +1,44 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  position: relative;
+}
+
+.languageSwitch {
+  position: absolute;
+  right: 24px;
+  top: 24px;
+}
+
+.panel {
+  width: min(100%, 460px);
+  padding: 32px;
+  border-radius: 30px;
+  border: 1px solid rgba(213, 222, 228, 0.92);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(244, 248, 250, 0.88) 100%);
+  box-shadow: 0 28px 80px rgba(29, 50, 67, 0.12);
+}
+
+.kicker {
+  margin: 0 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 38px);
+  line-height: 1.06;
+}
+
+.description {
+  margin: 14px 0 24px;
+  color: var(--color-muted);
+  line-height: 1.55;
+}

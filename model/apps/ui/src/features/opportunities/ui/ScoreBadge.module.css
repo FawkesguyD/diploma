@@ -1,0 +1,33 @@
+.badge {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 76px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.badge strong {
+  font-size: 18px;
+}
+
+.base {
+  background: #eef3f5;
+  border-color: #d7e1e6;
+  color: #284455;
+}
+
+.watch {
+  background: #eef4ec;
+  border-color: #cfdcc9;
+  color: #3c5d34;
+}
+
+.strong {
+  background: #f6efe3;
+  border-color: #e9d6b4;
+  color: #825d16;
+}

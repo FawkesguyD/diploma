@@ -1,0 +1,66 @@
+@startuml deployment
+!theme plain
+title АИС — диаграмма развёртывания (один хост, docker compose)
+
+skinparam backgroundColor #FFFFFF
+skinparam roundCorner 10
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+
+node "Хост (Linux, Docker)" {
+
+  node "Сеть: edge" as edge_net {
+    component "traefik\n:80 / :443" as traefik
+    component "frontend\n(Node.js build → nginx)" as fe
+  }
+
+  node "Сеть: internal" as int_net {
+
+    package "Backend сервисы (Python · FastAPI · Pydantic)" {
+      component "realestate" as svc_re
+      component "nlp-parser" as svc_nlp
+      component "metrics" as svc_metrics
+    }
+
+    package "Брокеры" {
+      component "rabbitmq\n:5672 / :15672" as mq_rabbit
+      component "kafka\n:9092" as mq_kafka
+    }
+
+    package "Хранилища" {
+      database "postgres\n:5432" as db_pg
+      database "mongodb\n:27017" as db_mongo
+      database "clickhouse\n:8123 / :9000" as db_ch
+      database "minio\n:9000 / :9001" as db_minio
+    }
+  }
+}
+
+traefik --> fe
+traefik --> svc_re
+traefik --> svc_nlp
+traefik --> svc_metrics
+
+svc_re --> mq_rabbit
+svc_nlp --> mq_rabbit
+svc_re ..> mq_kafka : metrics
+svc_nlp ..> mq_kafka : metrics
+mq_kafka --> svc_metrics
+
+svc_re --> db_pg
+svc_re --> db_mongo
+svc_re --> db_minio
+
+svc_nlp --> db_pg
+svc_nlp --> db_mongo
+
+svc_metrics --> db_ch
+svc_metrics --> db_pg
+
+note bottom
+  Деплой: <b>docker compose up -d</b>
+  Все сервисы — на одном хосте, изолированы через docker networks.
+  edge — открытый, internal — приватный.
+end note
+
+@enduml

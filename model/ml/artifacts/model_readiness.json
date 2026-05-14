@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "active_model_path": "best_model_russia2021.joblib",
+  "active_model_name": "catboost_regressor_russia2021",
+  "base_currency": "RUB",
+  "created_at": "2026-04-17T00:00:00+03:00",
+  "metrics": {
+    "rmse_log": 0.29623392430064316,
+    "mae_price": 936297.6947650431,
+    "rmse_price": 13287811.449436856,
+    "mape_price": 4.579022484080766,
+    "r2_price": 0.18110577559626906
+  },
+  "metadata": {
+    "dataset_name": "daniilakk/Russia_Real_Estate_2021",
+    "target_formula": "F(x)=log(price)",
+    "target_column": "price",
+    "prediction_target": "total_price",
+    "base_currency": "RUB",
+    "category_values": {
+      "building_type": ["unknown", "other", "panel", "monolith", "brick", "block", "wooden"],
+      "object_type": ["secondary", "new"],
+      "region": ["3", "69", "81", "821", "1010", "1491", "1901", "2072", "2328", "2359", "2484", "2528", "2594", "2604", "2661", "2722", "2806", "2814", "2843", "2860", "2871", "2880", "2885", "2900", "2922", "3019", "3106", "3153", "3230", "3446", "3870", "3991", "4007", "4086", "4189", "4240", "4249", "4374", "4417", "4695", "4963", "4982", "5143", "5178", "5241", "5282", "5368", "5520", "5703", "5736", "5789", "5794", "5952", "5993", "6171", "6309", "6543", "6817", "6937", "7121", "7793", "7873", "7896", "7929", "8090", "8509", "8640", "8894", "9579", "9648", "9654", "10160", "10201", "10582", "11171", "11416", "11991", "13098", "13913", "13919", "14368", "14880", "16705", "61888"]
+    },
+    "market_bounds": {
+      "schema_version": 1,
+      "unit": "RUB_PER_M2",
+      "global": {
+        "count": 4377801,
+        "p05": 27678.57142857141,
+        "p10": 31111.111111111128,
+        "median": 61000.00000000002,
+        "p90": 146153.84615384619,
+        "p95": 191935.48387096764
+      },
+      "segments": {}
+    }
+  },
+  "market_bounds": {
+    "schema_version": 1,
+    "unit": "RUB_PER_M2",
+    "global": {
+      "count": 4377801,
+      "p05": 27678.57142857141,
+      "p10": 31111.111111111128,
+      "median": 61000.00000000002,
+      "p90": 146153.84615384619,
+      "p95": 191935.48387096764
+    },
+    "segments": {}
+  },
+  "candidates": [
+    {
+      "model_name": "catboost_regressor_russia2021",
+      "prediction_target": "total_price",
+      "metrics": {
+        "rmse_log": 0.29623392430064316,
+        "mae_price": 936297.6947650431,
+        "rmse_price": 13287811.449436856,
+        "mape_price": 4.579022484080766,
+        "r2_price": 0.18110577559626906
+      }
+    }
+  ],
+  "readiness_checks": {
+    "base_currency_rub": true,
+    "artifact_exists": true,
+    "validation_passed": true
+  }
+}

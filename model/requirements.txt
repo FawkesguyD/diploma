@@ -1,0 +1,15 @@
+pandas
+numpy
+scikit-learn
+joblib
+matplotlib
+requests
+datasets
+catboost
+fastapi
+uvicorn
+httpx<0.28
+sqlalchemy
+alembic
+psycopg[binary]
+itsdangerous

@@ -1,0 +1,141 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: real-estate-db
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-realestate}
+      POSTGRES_USER: ${POSTGRES_USER:-realestate}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-realestate}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-realestate} -d ${POSTGRES_DB:-realestate}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  real-estate-api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: real-estate-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      data-migrator:
+        condition: service_completed_successfully
+    ports:
+      - "${API_PORT:-8000}:${API_PORT:-8000}"
+    environment:
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${API_PORT:-8000}
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
+      MODEL_PATH: ${MODEL_PATH:-/app/ml/artifacts/best_model_russia2021.joblib}
+      MODEL_READINESS_PATH: ${MODEL_READINESS_PATH:-/app/ml/artifacts/model_readiness.json}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://realestate:realestate@postgres:5432/realestate}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-for-local-dev}
+      SESSION_MAX_AGE_SECONDS: ${SESSION_MAX_AGE_SECONDS:-43200}
+      UI_ALLOWED_ORIGINS: ${UI_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          'from urllib.request import urlopen; import os; urlopen(f"http://127.0.0.1:{os.getenv(''PORT'', ''8000'')}/health").read()',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    mem_reservation: 256m
+    mem_limit: 512m
+    cpus: 1.0
+
+  real-estate-ui:
+    build:
+      context: .
+      dockerfile: apps/ui/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    container_name: real-estate-ui
+    restart: unless-stopped
+    depends_on:
+      real-estate-api:
+        condition: service_healthy
+    ports:
+      - "${UI_PORT:-5173}:80"
+
+  geocode-service:
+    build:
+      context: .
+      dockerfile: apps/geocode/Dockerfile
+    container_name: geocode-service
+    restart: unless-stopped
+    ports:
+      - "${GEOCODE_PORT:-8081}:8080"
+    environment:
+      HOST: ${HOST:-0.0.0.0}
+      PORT: 8080
+      GEOCODER_PROVIDER: ${GEOCODER_PROVIDER:-nominatim}
+      GEOCODER_BASE_URL: ${GEOCODER_BASE_URL:-https://nominatim.openstreetmap.org/search}
+      GEOCODER_REVERSE_BASE_URL: ${GEOCODER_REVERSE_BASE_URL:-https://nominatim.openstreetmap.org/reverse}
+      GEOCODER_TIMEOUT: ${GEOCODER_TIMEOUT:-10}
+      GEOCODER_USER_AGENT: ${GEOCODER_USER_AGENT:-real-estate-mvp-geocode/0.1 (local development)}
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: apps/analytics_service/Dockerfile
+    container_name: analytics-service
+    restart: unless-stopped
+    ports:
+      - "${ANALYTICS_PORT:-8090}:8090"
+    environment:
+      HOST: ${HOST:-0.0.0.0}
+      PORT: 8090
+      UVICORN_WORKERS: ${ANALYTICS_UVICORN_WORKERS:-1}
+      MODEL_PATH: ${MODEL_PATH:-/app/ml/artifacts/best_model_russia2021.joblib}
+      MODEL_READINESS_PATH: ${MODEL_READINESS_PATH:-/app/ml/artifacts/model_readiness.json}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          'from urllib.request import urlopen; import os; urlopen(f"http://127.0.0.1:{os.getenv(''PORT'', ''8090'')}/health").read()',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    mem_reservation: 256m
+    mem_limit: 512m
+    cpus: 1.0
+
+  data-migrator:
+    build:
+      context: .
+      dockerfile: services/data_migrator/Dockerfile
+    container_name: data-migrator
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://realestate:realestate@postgres:5432/realestate}
+      CSV_SOURCE_PATH: ${CSV_SOURCE_PATH:-./office-sale.csv}
+    volumes:
+      - ./ml/artifacts/russia2021_prepared:/app/ml/artifacts/russia2021_prepared:ro
+
+volumes:
+  postgres_data:

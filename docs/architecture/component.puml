@@ -1,0 +1,85 @@
+@startuml component
+!theme plain
+title АИС — детализация сервисов (C4: Level 3, компоненты)
+
+skinparam backgroundColor #FFFFFF
+skinparam roundCorner 10
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+
+' === Realestate Service ===
+package "Realestate Service" {
+  component "HTTP API\n(FastAPI)" as re_api
+  component "Predict Engine\n(CatBoost)" as re_predict
+  component "Ranking Engine\n(топ недооценённых)" as re_rank
+  component "Model Loader\n(MinIO client)" as re_loader
+  component "Listing Parser\n(сайты объявлений)" as re_parser
+  component "Queue Consumer\n(RabbitMQ)" as re_consumer
+  component "Metrics Publisher\n(Kafka producer)" as re_metrics
+  component "DB Adapter\n(Postgres + Mongo)" as re_db
+
+  re_api --> re_predict
+  re_api --> re_rank
+  re_rank --> re_predict
+  re_predict --> re_loader
+  re_consumer --> re_predict
+  re_consumer --> re_rank
+  re_parser --> re_db
+  re_predict --> re_metrics
+  re_rank --> re_db
+}
+
+' === NLP / Parser Service ===
+package "NLP / Parser Service" {
+  component "Telegram Collector\n(Telethon)" as nlp_tg
+  component "News Collector\n(RSS / HTML)" as nlp_news
+  component "Message Normalizer" as nlp_norm
+  component "Classifier\n(тематики)" as nlp_clf
+  component "NER\n(локации, застройщики)" as nlp_ner
+  component "Sentiment\n(тональность)" as nlp_sent
+  component "Ad Filter\n(фильтр рекламы)" as nlp_ad
+  component "Trend Extractor" as nlp_trend
+  component "HTTP API\n(FastAPI)" as nlp_api
+  component "Queue Consumer\n(RabbitMQ)" as nlp_consumer
+  component "Metrics Publisher\n(Kafka producer)" as nlp_metrics
+  component "DB Adapter\n(Postgres + Mongo)" as nlp_db
+
+  nlp_tg --> nlp_norm
+  nlp_news --> nlp_norm
+  nlp_norm --> nlp_ad
+  nlp_ad --> nlp_clf
+  nlp_clf --> nlp_ner
+  nlp_ner --> nlp_sent
+  nlp_sent --> nlp_db
+  nlp_clf --> nlp_metrics
+  nlp_trend --> nlp_db
+  nlp_api --> nlp_db
+  nlp_consumer --> nlp_norm
+}
+
+' === Metrics / Dashboards Service ===
+package "Metrics / Dashboards Service" {
+  component "Kafka Consumer" as m_consumer
+  component "Aggregator\n(batch → ClickHouse)" as m_agg
+  component "Dashboard API\n(FastAPI)" as m_api
+  component "Query Engine\n(ClickHouse SQL)" as m_query
+
+  m_consumer --> m_agg
+  m_api --> m_query
+}
+
+' === Frontend ===
+package "Frontend (SPA)" {
+  component "Feed UI\n(лента сообщений)" as fe_feed
+  component "Filters\n(тема / тональность / время)" as fe_filters
+  component "Dashboards UI\n(временные ряды,\nкарта районов)" as fe_dash
+  component "Top Listings UI\n(недооценённые объекты)" as fe_top
+  component "API Client" as fe_api
+
+  fe_feed --> fe_api
+  fe_filters --> fe_feed
+  fe_dash --> fe_api
+  fe_top --> fe_api
+}
+
+@enduml

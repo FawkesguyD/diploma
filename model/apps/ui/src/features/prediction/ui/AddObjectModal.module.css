@@ -1,0 +1,94 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 33, 49, 0.45);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.dialog {
+  width: min(820px, 100%);
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(15, 33, 49, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 22px 24px 12px;
+  gap: 12px;
+}
+
+.kicker {
+  margin: 0 0 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.closeButton {
+  background: transparent;
+  border: 0;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--color-muted-strong);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.closeButton:hover {
+  background: rgba(239, 244, 247, 0.94);
+}
+
+.body {
+  padding: 8px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.postActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.primaryButton,
+.secondaryButton {
+  border-radius: 999px;
+  padding: 10px 18px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.primaryButton {
+  background: #1f5d7d;
+  color: white;
+}
+
+.secondaryButton {
+  background: white;
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}

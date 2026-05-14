@@ -1,0 +1,156 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kicker {
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--color-muted);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.signalBadge {
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.signalPositive {
+  background: rgba(76, 139, 92, 0.14);
+  color: #2f6438;
+}
+
+.signalNegative {
+  background: rgba(185, 93, 93, 0.14);
+  color: #8d3b3b;
+}
+
+.signalNeutral {
+  background: rgba(130, 144, 158, 0.14);
+  color: var(--color-muted-strong);
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.metricCard {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metricCardAccent {
+  background: linear-gradient(180deg, rgba(31, 93, 125, 0.08), rgba(31, 93, 125, 0.02));
+  border-color: rgba(31, 93, 125, 0.25);
+}
+
+.metricLabel {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.metricValue {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.metricValue.positive {
+  color: #2f6438;
+}
+
+.metricValue.negative {
+  color: #8d3b3b;
+}
+
+.metricHint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.panel {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background: rgba(245, 248, 250, 0.8);
+}
+
+.panel h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted-strong);
+}
+
+.explanation {
+  margin: 0;
+  line-height: 1.55;
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.factors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.factorChip {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(214, 228, 236, 0.8);
+  color: var(--color-text);
+  font-size: 12px;
+}
+
+.warningList {
+  margin: 0;
+  padding-left: 18px;
+  color: #8d3b3b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.disclaimer {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.5;
+}

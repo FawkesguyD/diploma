@@ -1,0 +1,109 @@
+@startuml container
+!theme plain
+title АИС — диаграмма контейнеров (C4: Level 2)
+
+skinparam backgroundColor #FFFFFF
+skinparam roundCorner 12
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam defaultFontSize 12
+skinparam ArrowColor #444444
+skinparam ArrowFontSize 10
+skinparam ArrowFontColor #444444
+skinparam padding 6
+skinparam nodesep 50
+skinparam ranksep 70
+
+' Раскладка сверху вниз: акторы → edge → сервисы → брокеры → хранилища
+top to bottom direction
+
+' === Уровень 0: внешний мир ===
+actor "Пользователь" as user
+cloud "Telegram" as tg
+cloud "Новости\n(RSS / HTML)" as news
+cloud "Объявления\nнедвижимости" as ads
+
+' === Уровень 1: Edge ===
+package "Edge" as edge_pkg {
+  rectangle "**API Gateway**\n[Traefik]" as gateway #LightYellow
+}
+
+' === Уровень 2: прикладные сервисы ===
+package "Прикладной слой" as app_pkg {
+  rectangle "**Frontend**\nVue 3 + Vite\n(Node.js build)" as frontend #LightBlue
+  rectangle "**Realestate**\nPython · FastAPI · Pydantic\nоценка + ранжирование" as realestate #LightGreen
+  rectangle "**NLP / Parser**\nPython · FastAPI · Pydantic\n+ Telethon" as nlp #LightGreen
+  rectangle "**Metrics**\nPython · FastAPI · Pydantic\nагрегация" as metrics #LightGreen
+}
+
+' === Уровень 3: брокеры ===
+package "Брокеры" as broker_pkg {
+  queue "**RabbitMQ**\nкоманды" as rabbit #Pink
+  queue "**Kafka**\nтолько метрики" as kafka #Pink
+}
+
+' === Уровень 4: хранилища ===
+package "Хранилища" as storage_pkg {
+  database "**PostgreSQL**\nпользователи,\nконфиги" as pg #LightCoral
+  database "**MongoDB**\nсообщения,\nобъявления" as mongo #LightCoral
+  database "**ClickHouse**\nметрики" as ch #LightCoral
+  database "**MinIO** (S3)\nML-артефакты" as minio #LightCoral
+}
+
+' ===========================================================
+'   Связи. Группируем по типу, чтобы граф не путался.
+' ===========================================================
+
+' --- Пользователь и фронт ---
+user     --> gateway       : HTTPS
+gateway  --> frontend      : / (SPA)
+frontend ..> gateway       : REST
+
+' --- Маршрутизация шлюза в сервисы ---
+gateway --> realestate     : /api/realestate/*
+gateway --> nlp            : /api/messages/*
+gateway --> metrics        : /api/metrics/*
+
+' --- Источники данных → сервисы (заходят сбоку) ---
+tg   -right-> nlp          : Telethon
+news -right-> nlp          : RSS / HTTP
+ads  -right-> realestate   : HTTP-парсер
+
+' --- Команды через RabbitMQ ---
+nlp        --> rabbit      : parse.task,\nnlp.analyze
+realestate --> rabbit      : realestate.score,\nrank
+rabbit     --> nlp         : consume
+rabbit     --> realestate  : consume
+
+' --- Метрики через Kafka (отдельный поток!) ---
+nlp        ..> kafka       : metrics.messages
+realestate ..> kafka       : metrics.prices
+kafka      --> metrics     : consume
+
+' --- Сервисы → хранилища ---
+realestate --> pg          : model_runs,\nконфиги
+realestate --> mongo       : realestate_listings
+realestate --> minio       : загрузка модели
+
+nlp        --> pg          : источники,\nparser_jobs
+nlp        --> mongo       : messages,\nnlp_annotations
+
+metrics    --> ch          : batch INSERT
+metrics    --> pg          : справочники
+
+' ===========================================================
+'   Поясняющие notes — справа, чтобы не давили на граф.
+' ===========================================================
+note right of kafka
+  Kafka отделён от RabbitMQ намеренно:
+  потеря метрик недопустима, поток метрик
+  не должен влиять на оперативные команды.
+end note
+
+note right of minio
+  Структура артефактов:
+  models/realestate/<version>/...
+  models/nlp/<task>/<version>/...
+end note
+
+@enduml
