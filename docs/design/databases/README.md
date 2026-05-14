@@ -18,8 +18,6 @@ sources ─────────────►  realestate_listings    │
 model_registry ──────►  nlp_annotations        │
 module_configs                                 │
 model_runs ──────────►  (result_ref)           │
-topics                                         │
-districts                                      │
                                                ▼
                               события (Kafka) ──► events_messages
                                                   events_prices

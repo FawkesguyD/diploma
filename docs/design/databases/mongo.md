@@ -1,13 +1,21 @@
 # MongoDB — схема документного хранилища
 
-> **Назначение БД:** хранение документов с гетерогенной структурой — сырые сообщения из Telegram/новостей, объявления недвижимости, результаты NLP-аннотации. Всё, что плохо ложится в реляционную модель.
+> **Назначение БД:** хранение документов с гетерогенной структурой — сырые сообщения из Telegram/новостей, объявления недвижимости, результаты NLP-аннотации и оценки моделью. Всё, что плохо ложится в реляционную модель.
 
-## Зоны ответственности
+## Зоны ответственности и симметрия имён
 
-1. **`messages`** — сырые сообщения и новости (нормализованные).
-2. **`nlp_annotations`** — результаты NLP-обработки сообщений (классификация, NER, тональность, метки рекламы).
-3. **`realestate_listings`** — объявления о недвижимости + результаты модели (предсказанная цена, отклонение, ранг).
-4. **`raw_payloads`** _(опц.)_ — сырые дампы ответов сторонних API/HTML на случай переразбора.
+Сырые данные и результаты их обработки моделями разнесены по разным коллекциям. Имена парные, отличаются постфиксом:
+
+| Сырые (что спарсили) | Обогащённые моделью | Постфикс |
+|---|---|---|
+| `messages` | `annotated_messages` | `*_messages` |
+| `objects` | `annotated_objects` | `*_objects` |
+
+**Принцип:** одна сырая запись → ноль или больше «обогащённых» записей (для разных версий моделей). Актуальная помечается `is_active: true`. Это позволяет:
+
+- независимо переразбирать историю под новые модели;
+- хранить несколько версий одного результата для сравнения;
+- удалять/пересчитывать обогащение без потери исходника.
 
 ## Принципы
 
@@ -20,15 +28,16 @@
 
 ---
 
-## `messages`
+## `messages` — сырые сообщения
 
-Сырые сообщения из Telegram-каналов и новостей. Один документ = одно сообщение/статья.
+Сырые сообщения из Telegram-каналов, новостных сайтов, RSS-лент. Один документ = одно сообщение/статья.
 
 ```jsonc
 {
   "_id": ObjectId(),
   "source_id": "uuid-source-from-postgres",
-  "source_kind": "telegram",          // дублируем для удобных фильтров без джойна
+  "channel_kind": "tg",               // 'tg' | 'news' | 'rss' | 'html'
+  "channel_site": "t.me",             // домен/идентификатор площадки (для news: 'rbc.ru', 'kommersant.ru' и т.п.)
   "external_id": "channel:12345:678", // уникальный ID в источнике (telegram msg_id, news guid)
   "url": "https://t.me/channel/678",  // null для приватных
   "author": {
@@ -61,22 +70,24 @@
 }
 ```
 
+**Поля типа источника:**
+- `channel_kind` — категория канала: `tg` (Telegram), `news` (новостной сайт), `rss` (RSS-лента), `html` (произвольный HTML-парсинг). Дублирует `core.sources.kind` из Postgres для фильтров без джойна.
+- `channel_site` — конкретная площадка (`t.me`, `rbc.ru`, `kommersant.ru`). Нужно для разрезов «по изданию» в дашбордах и для отладки парсера.
+
 **Индексы:**
 
 | Индекс | Назначение |
 |---|---|
 | `{source_id: 1, external_id: 1}` (unique) | идемпотентность парсинга |
 | `{published_at: -1}` | лента «по времени» |
-| `{source_kind: 1, published_at: -1}` | фильтр по типу источника |
+| `{channel_kind: 1, published_at: -1}` | фильтр по типу источника |
+| `{channel_site: 1, published_at: -1}` | фильтр по площадке |
 
 ---
 
-## `nlp_annotations`
+## `annotated_messages` — результаты NLP для сообщения
 
-Результаты NLP-пайплайна для сообщения. **Отдельная коллекция** (а не вложенный объект в `messages`), чтобы:
-
-- независимо переразбирать историю под новые модели;
-- хранить несколько версий аннотации одного сообщения (одна актуальная + старые для сравнения).
+Результаты NLP-пайплайна для сообщения. Отдельная коллекция (а не вложенный объект в `messages`) — см. принцип симметрии выше.
 
 ```jsonc
 {
@@ -130,16 +141,18 @@
 
 ---
 
-## `realestate_listings`
+## `objects` — сырые объекты недвижимости
 
-Объявления о недвижимости + результаты модели оценки.
+Объявления о недвижимости в исходном (нормализованном) виде, **без** результатов модели. Один документ = одно объявление, как его увидел парсер.
 
 ```jsonc
 {
   "_id": ObjectId(),
-  "source_id": "uuid-source",
+  "source_id":   "uuid-source",
+  "object_kind": "residential",        // 'residential' | 'commercial' | 'land' | 'parking'
+  "channel_site": "cian.ru",           // конкретная площадка ('cian.ru', 'avito.ru', 'domclick.ru', ...)
   "external_id": "cian:listing:12345",
-  "url": "https://...",
+  "url":         "https://...",
   "fetched_at":  ISODate(),
   "published_at": ISODate(),
 
@@ -162,17 +175,6 @@
     "raw_extra": { /* специфичные поля сайта */ }
   },
 
-  "prediction": {                      // результат модели (может отсутствовать)
-    "model_run_id": "uuid",
-    "model_version": "v1.0",
-    "predicted_price": 16_200_000,
-    "deviation_abs": -1_700_000,       // listing.price - predicted
-    "deviation_pct": -10.49,
-    "is_undervalued": true,
-    "rank_in_run": 3,                  // место в ранжированном списке этого запуска
-    "computed_at": ISODate()
-  },
-
   "status": "active",                  // 'active' | 'sold' | 'removed'
   "history": [                          // история изменения цены
     {"observed_at": ISODate(), "price": 15_000_000},
@@ -184,52 +186,90 @@
 }
 ```
 
+**Поля типа источника:**
+- `object_kind` — категория недвижимости: `residential` (жилая), `commercial` (коммерческая), `land` (участки), `parking` (машиноместа). Жёстко влияет на применимую модель оценки (для коммерции — отдельный пайплайн в перспективе).
+- `channel_site` — площадка-источник (`cian.ru`, `avito.ru`, `domclick.ru`). Аналог `channel_site` для сообщений — нужно для разрезов «по площадке» и отладки парсеров.
+
 **Индексы:**
 
 | Индекс | Назначение |
 |---|---|
 | `{source_id: 1, external_id: 1}` (unique) | идемпотентность парсинга |
-| `{prediction.is_undervalued: 1, prediction.deviation_pct: 1}` | топ недооценённых |
+| `{object_kind: 1, status: 1, published_at: -1}` | лента по типу недвижимости |
+| `{channel_site: 1, published_at: -1}` | фильтр по площадке |
 | `{listing.address.district_slug: 1, status: 1}` | фильтр по району |
 | `{published_at: -1}` | сортировка по свежести |
 | `{listing.address.lat: 1, listing.address.lon: 1}` (2dsphere) | гео-запросы / карта |
 
 ---
 
-## `raw_payloads` (опционально)
+## `annotated_objects` — результаты модели оценки для объекта
 
-Сырые ответы (HTML/JSON) на случай переразбора. Можно отключить, если жалко места.
+Результаты прогона объявления через модель CatBoost (предсказанная цена, отклонение, ранг). Отдельная коллекция по тем же причинам, что и `annotated_messages`:
+
+- независимо переоценивать объекты под новые версии модели;
+- хранить несколько версий оценки одного объекта для сравнения / A-B;
+- удалять старые оценки без потери исходного объявления.
 
 ```jsonc
 {
   "_id": ObjectId(),
-  "source_id": "uuid",
-  "external_id": "...",
-  "fetched_at": ISODate(),
-  "content_type": "text/html",
-  "payload": "...",                    // строка или GridFS-ссылка
-  "checksum_sha256": "..."
+  "object_id":     ObjectId("..."),    // ссылка на objects._id
+  "model_run_id":  "uuid-from-postgres",
+  "model_version": "v1.0",             // версия модели (дублирует core.model_registry для удобства)
+  "module":        "realestate",       // на случай нескольких модулей оценки
+
+  "predicted_price":  16_200_000,
+  "deviation_abs":    -1_700_000,      // listing.price - predicted_price (отрицательное = недооценка)
+  "deviation_pct":    -10.49,
+  "is_undervalued":   true,
+  "rank_in_run":      3,               // место в ранжированном списке этого запуска
+
+  "features_used":    {                // для воспроизводимости и отладки
+    "area": 52.4,
+    "rooms": 2,
+    "district_slug": "presnenskiy",
+    /* ... остальные фичи, поданные в модель */
+  },
+
+  "is_active":  true,                  // актуальная оценка для object_id
+  "computed_at": ISODate(),
+  "created_at": ISODate(),
+  "updated_at": ISODate()
 }
 ```
 
-**Индексы:** `{source_id: 1, external_id: 1, fetched_at: -1}`.
+**Индексы:**
+
+| Индекс | Назначение |
+|---|---|
+| `{object_id: 1, is_active: 1}` | получить актуальную оценку для объекта |
+| `{is_active: 1, is_undervalued: 1, deviation_pct: 1}` | топ недооценённых |
+| `{model_run_id: 1}` | трассируемость запуска |
+| `{model_version: 1, is_active: 1}` | срез «всё, что оценено версией v1.0» |
+| `{rank_in_run: 1, model_run_id: 1}` | топ-N конкретного запуска |
 
 ---
 
 ## Связи между коллекциями (текстом)
 
 ```
-messages._id  ←──  nlp_annotations.message_id
-sources.id (Postgres) ──→ messages.source_id, realestate_listings.source_id
-model_registry.id (Postgres) ──→ realestate_listings.prediction.model_run_id
-                                  nlp_annotations.model_run_id
-topics.slug (Postgres) ──→ nlp_annotations.topics[].slug
-districts.slug (Postgres) ──→ realestate_listings.listing.address.district_slug,
-                              nlp_annotations.entities[].district_slug
+messages._id  ←──  annotated_messages.message_id
+objects._id   ←──  annotated_objects.object_id
+
+sources.id (Postgres) ──→ messages.source_id, objects.source_id
+model_registry.id (Postgres) ──→ annotated_messages.model_run_id
+                                  annotated_objects.model_run_id
+
+topics: метки приходят из артефакта классификатора в MinIO
+       (models/nlp/classifier/<version>/labels.json)
+       — записываются в annotated_messages.topics[].slug
+
+districts: канонизация при нормализации адреса в realestate-сервисе
+           — попадает в objects.listing.address.district_slug
+             и annotated_messages.entities[].district_slug
 ```
 
 ## Открытые вопросы
 
-- [ ] Хранить ли вложения (изображения) в GridFS или только URL? Предлагаю — URL, без скачивания (экономия места, проще приватность).
-- [ ] Нужна ли версионность объявлений (snapshot при каждом изменении) или достаточно поля `history` с ценой? По плану дашбордов — достаточно `history`.
-- [ ] Нужна ли отдельная коллекция `trends` для извлечённых трендов, или это лучше пересчитывать в ClickHouse из агрегатов? Предлагаю — в ClickHouse (см. `clickhouse.md`).
+(закрыто — основные решения зафиксированы выше: вложения хранятся как URL без скачивания, `history` достаточно для версионности цены, тренды считаются в ClickHouse из агрегатов, `features_used` в `annotated_objects` хранится целиком.)
