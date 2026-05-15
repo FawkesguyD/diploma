@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -20,13 +22,23 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   useListingsByChannel,
-  useModelQuality,
   useOverview,
+  usePriceDistribution,
+  usePricesByDistrict,
   usePricesTimeseries,
   useSentimentByDistrict,
+  useTopicCooccurrence,
   useTopicsActivity,
+  useUndervaluedShare,
 } from '@/api/hooks';
-import { Activity, AlertTriangle, BarChart3, Building2, Database, MessageSquare } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  Building2,
+  Database,
+  MessageSquare,
+} from 'lucide-react';
 import { formatNumber } from '@/lib/utils';
 
 const CHART_COLORS = [
@@ -47,7 +59,10 @@ export function DashboardsPage() {
   const prices = usePricesTimeseries(priceGran);
   const sentiment = useSentimentByDistrict();
   const channels = useListingsByChannel();
-  const quality = useModelQuality();
+  const distribution = usePriceDistribution();
+  const byDistrict = usePricesByDistrict();
+  const cooccurrence = useTopicCooccurrence(12);
+  const undervaluedShare = useUndervaluedShare();
 
   return (
     <div className="space-y-6">
@@ -162,7 +177,7 @@ export function DashboardsPage() {
 
         <ChartCard
           title="Тональность по районам"
-          description="Среднее значение sentiment по районам"
+          description="Распределение позитив / нейтрально / негатив"
           loading={sentiment.isFetching}
           empty={!sentiment.data || sentiment.data.length === 0}
         >
@@ -175,9 +190,9 @@ export function DashboardsPage() {
                 contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))' }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="pos_count" name="Позитив" fill="hsl(152, 65%, 45%)" />
-              <Bar dataKey="neu_count" name="Нейтрально" fill="hsl(215, 16%, 60%)" />
-              <Bar dataKey="neg_count" name="Негатив" fill="hsl(348, 75%, 55%)" />
+              <Bar dataKey="pos_count" name="Позитив" stackId="s" fill="hsl(152, 65%, 45%)" />
+              <Bar dataKey="neu_count" name="Нейтрально" stackId="s" fill="hsl(215, 16%, 60%)" />
+              <Bar dataKey="neg_count" name="Негатив" stackId="s" fill="hsl(348, 75%, 55%)" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -208,22 +223,113 @@ export function DashboardsPage() {
         </ChartCard>
 
         <ChartCard
-          title="Качество модели"
-          description="MAE / отклонения по времени"
-          loading={quality.isFetching}
-          empty={!quality.data || quality.data.series.length === 0}
-          className="lg:col-span-2"
+          title="Цена ₽/м² по комнатности"
+          description="Квантильное распределение за месяц (p25 / p50 / p75 / p90)"
+          loading={distribution.isFetching}
+          empty={!distribution.data || distribution.data.length === 0}
         >
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={quality.data?.series ?? []}>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={distribution.data ?? []}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="t" tick={{ fontSize: 10 }} tickFormatter={(v: string) => v.slice(0, 10)} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <XAxis
+                dataKey="rooms"
+                tick={{ fontSize: 10 }}
+                tickFormatter={(v: number) => `${v} к.`}
+              />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => formatNumber(v)} />
+              <ChartTooltip
+                formatter={(v: number) => formatNumber(v)}
+                contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))' }}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="p25" name="p25" fill={CHART_COLORS[2]} />
+              <Bar dataKey="p50" name="p50 (медиана)" fill={CHART_COLORS[0]} />
+              <Bar dataKey="p75" name="p75" fill={CHART_COLORS[1]} />
+              <Bar dataKey="p90" name="p90" fill={CHART_COLORS[4]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Средняя цена ₽/м² по районам"
+          description="Топ районов по цене квадратного метра за период"
+          loading={byDistrict.isFetching}
+          empty={!byDistrict.data || byDistrict.data.length === 0}
+        >
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={byDistrict.data ?? []} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v: number) => formatNumber(v)} />
+              <YAxis type="category" dataKey="district_slug" tick={{ fontSize: 10 }} width={110} />
+              <ChartTooltip
+                formatter={(v: number) => `${formatNumber(v)} ₽/м²`}
+                contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))' }}
+              />
+              <Bar dataKey="avg_price_per_m2" fill={CHART_COLORS[1]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Связи между темами"
+          description="Топ-12 пар тем, чаще всего встречающихся в одном сообщении"
+          loading={cooccurrence.isFetching}
+          empty={!cooccurrence.data || cooccurrence.data.length === 0}
+        >
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart
+              data={(cooccurrence.data ?? []).map((p) => ({
+                pair: `${p.topic_a} ↔ ${p.topic_b}`,
+                weight: p.weight,
+              }))}
+              layout="vertical"
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis type="number" tick={{ fontSize: 10 }} />
+              <YAxis type="category" dataKey="pair" tick={{ fontSize: 10 }} width={210} />
               <ChartTooltip
                 contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))' }}
               />
-              <Line type="monotone" dataKey="v" stroke={CHART_COLORS[3]} strokeWidth={2} dot={false} />
-            </LineChart>
+              <Bar dataKey="weight" fill={CHART_COLORS[5]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Доля недооценённых объектов"
+          description="Отношение «недооценённые / все новые объявления» по дням"
+          loading={undervaluedShare.isFetching}
+          empty={!undervaluedShare.data || undervaluedShare.data.length === 0}
+          className="lg:col-span-2"
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <AreaChart data={undervaluedShare.data ?? []}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis
+                dataKey="day"
+                tick={{ fontSize: 10 }}
+                tickFormatter={(v: string) => v.slice(0, 10)}
+              />
+              <YAxis
+                tick={{ fontSize: 10 }}
+                tickFormatter={(v: number) => `${Math.round(v * 100)}%`}
+                domain={[0, 1]}
+              />
+              <ChartTooltip
+                formatter={(v: number, name: string) =>
+                  name === 'share' ? `${(v * 100).toFixed(1)}%` : formatNumber(v)
+                }
+                contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))' }}
+              />
+              <Area
+                type="monotone"
+                dataKey="share"
+                name="Доля недооценённых"
+                stroke={CHART_COLORS[4]}
+                fill={CHART_COLORS[4]}
+                fillOpacity={0.25}
+              />
+            </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
       </div>

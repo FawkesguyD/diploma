@@ -345,3 +345,66 @@ export function usePricesByDistrict() {
     retry: false,
   });
 }
+
+export interface PriceDistributionPoint {
+  rooms: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p90: number;
+  listings: number;
+}
+
+export function usePriceDistribution() {
+  return useQuery({
+    queryKey: ['dashboard', 'price-distribution'],
+    queryFn: async (): Promise<PriceDistributionPoint[] | null> => {
+      const raw = await safeQuery<PointsEnvelope<PriceDistributionPoint>>(
+        '/dashboards/prices/distribution'
+      )();
+      return raw?.points ?? [];
+    },
+    retry: false,
+  });
+}
+
+export interface TopicCooccurrencePoint {
+  topic_a: string;
+  topic_b: string;
+  weight: number;
+}
+
+export function useTopicCooccurrence(limit = 12) {
+  return useQuery({
+    queryKey: ['dashboard', 'topic-cooccurrence', limit],
+    queryFn: async (): Promise<TopicCooccurrencePoint[] | null> => {
+      const raw = await safeQuery<PointsEnvelope<TopicCooccurrencePoint>>(
+        '/dashboards/topics/cooccurrence',
+        { ...dashboardWindow(), limit }
+      )();
+      return raw?.points ?? [];
+    },
+    retry: false,
+  });
+}
+
+export interface UndervaluedSharePoint {
+  day: string;
+  undervalued: number;
+  listings_total: number;
+  share: number;
+}
+
+export function useUndervaluedShare() {
+  return useQuery({
+    queryKey: ['dashboard', 'undervalued-share'],
+    queryFn: async (): Promise<UndervaluedSharePoint[] | null> => {
+      const raw = await safeQuery<PointsEnvelope<UndervaluedSharePoint>>(
+        '/dashboards/model-quality/undervalued-share',
+        dashboardWindow()
+      )();
+      return raw?.points ?? [];
+    },
+    retry: false,
+  });
+}
