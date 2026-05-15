@@ -27,7 +27,6 @@ import {
   usePricesByDistrict,
   usePricesTimeseries,
   useSentimentByDistrict,
-  useTopicCooccurrence,
   useTopicsActivity,
   useUndervaluedShare,
 } from '@/api/hooks';
@@ -61,7 +60,6 @@ export function DashboardsPage() {
   const channels = useListingsByChannel();
   const distribution = usePriceDistribution();
   const byDistrict = usePricesByDistrict();
-  const cooccurrence = useTopicCooccurrence(12);
   const undervaluedShare = useUndervaluedShare();
 
   return (
@@ -266,31 +264,6 @@ export function DashboardsPage() {
                 contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))' }}
               />
               <Bar dataKey="avg_price_per_m2" fill={CHART_COLORS[1]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard
-          title="Связи между темами"
-          description="Топ-12 пар тем, чаще всего встречающихся в одном сообщении"
-          loading={cooccurrence.isFetching}
-          empty={!cooccurrence.data || cooccurrence.data.length === 0}
-        >
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart
-              data={(cooccurrence.data ?? []).map((p) => ({
-                pair: `${p.topic_a} ↔ ${p.topic_b}`,
-                weight: p.weight,
-              }))}
-              layout="vertical"
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis type="number" tick={{ fontSize: 10 }} />
-              <YAxis type="category" dataKey="pair" tick={{ fontSize: 10 }} width={210} />
-              <ChartTooltip
-                contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))' }}
-              />
-              <Bar dataKey="weight" fill={CHART_COLORS[5]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
