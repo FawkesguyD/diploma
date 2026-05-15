@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { cn, formatDateTime } from '@/lib/utils';
-import { ExternalLink, MessageSquare } from 'lucide-react';
+import { ExternalLink, Heart, MessageSquare } from 'lucide-react';
 import type { Message, SentimentLabel } from '@/api/types';
+import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/api/hooks';
 
 const SENTIMENT_LABEL: Record<SentimentLabel, string> = {
   positive: 'Позитив',
@@ -27,6 +28,18 @@ export function MessageCard({ message, isNew }: { message: Message; isNew?: bool
   const sentiment = message.annotation?.sentiment?.label;
   const topics = message.annotation?.topics ?? [];
   const isAd = message.annotation?.is_ad;
+  const favs = useFavorites('message');
+  const add = useAddFavorite();
+  const rem = useRemoveFavorite();
+  const isFav = (favs.data ?? []).some((f) => f.target_ref === message.id);
+
+  function toggleFav(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const payload = { target_kind: 'message' as const, target_ref: message.id };
+    if (isFav) rem.mutate(payload);
+    else add.mutate(payload);
+  }
 
   return (
     <article
@@ -35,6 +48,14 @@ export function MessageCard({ message, isNew }: { message: Message; isNew?: bool
         isNew && 'ring-2 ring-primary/40'
       )}
     >
+      <button
+        type="button"
+        onClick={toggleFav}
+        className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-rose-500"
+        aria-label={isFav ? 'Убрать из избранного' : 'В избранное'}
+      >
+        <Heart className={cn('h-4 w-4', isFav && 'fill-rose-500 text-rose-500')} />
+      </button>
       <header className="mb-3 flex flex-wrap items-center gap-2 text-xs">
         <Badge variant="outline" className="font-mono">
           {CHANNEL_LABEL[message.channel_kind] ?? message.channel_kind}

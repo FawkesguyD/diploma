@@ -7,10 +7,12 @@ import aio_pika
 from fastapi import FastAPI
 
 from nlp_parser.api.auth import router as auth_router
+from nlp_parser.api.favorites import router as favorites_router
 from nlp_parser.api.jobs import router as jobs_router
 from nlp_parser.api.messages import router as messages_router
 from nlp_parser.api.sources import router as sources_router
 from nlp_parser.api.subscriptions import router as subscriptions_router
+from nlp_parser.api.trends import router as trends_router
 from nlp_parser.config import get_settings
 from nlp_parser.kafka_publisher import MessageMetricsPublisher
 from nlp_parser.persistence.mongo import MongoClient
@@ -80,6 +82,8 @@ app.include_router(auth_router)
 app.include_router(sources_router)
 app.include_router(messages_router)
 app.include_router(subscriptions_router)
+app.include_router(favorites_router)
+app.include_router(trends_router)
 app.include_router(jobs_router)
 
 

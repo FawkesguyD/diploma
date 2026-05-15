@@ -20,6 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateRangePicker, type DateRangeValue } from '@/components/DateRangePicker';
 import {
   useListingsByChannel,
   useOverview,
@@ -50,25 +51,35 @@ const CHART_COLORS = [
 ];
 
 export function DashboardsPage() {
-  const overview = useOverview();
+  const [globalRange, setGlobalRange] = useState<DateRangeValue>({});
+  const [topicRange, setTopicRange] = useState<DateRangeValue>({});
+  const [pricesRange, setPricesRange] = useState<DateRangeValue>({});
+  const [sentimentRange, setSentimentRange] = useState<DateRangeValue>({});
+  const [channelsRange, setChannelsRange] = useState<DateRangeValue>({});
+  const [shareRange, setShareRange] = useState<DateRangeValue>({});
+
+  const overview = useOverview(globalRange);
   const [topic, setTopic] = useState('mortgage_rates');
   const [granularity, setGranularity] = useState<'hour' | 'day'>('day');
-  const topics = useTopicsActivity(topic, granularity);
+  const topics = useTopicsActivity(topic, granularity, hasRange(topicRange) ? topicRange : globalRange);
   const [priceGran, setPriceGran] = useState<'day' | 'week' | 'month'>('month');
-  const prices = usePricesTimeseries(priceGran);
-  const sentiment = useSentimentByDistrict();
-  const channels = useListingsByChannel();
+  const prices = usePricesTimeseries(priceGran, hasRange(pricesRange) ? pricesRange : globalRange);
+  const sentiment = useSentimentByDistrict(hasRange(sentimentRange) ? sentimentRange : globalRange);
+  const channels = useListingsByChannel(hasRange(channelsRange) ? channelsRange : globalRange);
   const distribution = usePriceDistribution();
   const byDistrict = usePricesByDistrict();
-  const undervaluedShare = useUndervaluedShare();
+  const undervaluedShare = useUndervaluedShare(hasRange(shareRange) ? shareRange : globalRange);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Аналитические дашборды</h1>
-        <p className="text-sm text-muted-foreground">
-          Сводные метрики по информационным потокам, рынку недвижимости и качеству моделей
-        </p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Аналитические дашборды</h1>
+          <p className="text-sm text-muted-foreground">
+            Сводные метрики по информационным потокам, рынку недвижимости и качеству моделей
+          </p>
+        </div>
+        <DateRangePicker value={globalRange} onChange={setGlobalRange} placeholder="Период (все карточки)" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -125,6 +136,7 @@ export function DashboardsPage() {
                   <SelectItem value="day">День</SelectItem>
                 </SelectContent>
               </Select>
+              <DateRangePicker value={topicRange} onChange={setTopicRange} size="sm" />
             </div>
           }
         >
@@ -147,16 +159,19 @@ export function DashboardsPage() {
           loading={prices.isFetching}
           empty={!prices.data || prices.data.series.length === 0}
           controls={
-            <Select value={priceGran} onValueChange={(v) => setPriceGran(v as 'day' | 'week' | 'month')}>
-              <SelectTrigger className="h-8 w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="day">День</SelectItem>
-                <SelectItem value="week">Неделя</SelectItem>
-                <SelectItem value="month">Месяц</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select value={priceGran} onValueChange={(v) => setPriceGran(v as 'day' | 'week' | 'month')}>
+                <SelectTrigger className="h-8 w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="day">День</SelectItem>
+                  <SelectItem value="week">Неделя</SelectItem>
+                  <SelectItem value="month">Месяц</SelectItem>
+                </SelectContent>
+              </Select>
+              <DateRangePicker value={pricesRange} onChange={setPricesRange} size="sm" />
+            </div>
           }
         >
           <ResponsiveContainer width="100%" height={260}>
@@ -178,6 +193,7 @@ export function DashboardsPage() {
           description="Распределение позитив / нейтрально / негатив"
           loading={sentiment.isFetching}
           empty={!sentiment.data || sentiment.data.length === 0}
+          controls={<DateRangePicker value={sentimentRange} onChange={setSentimentRange} size="sm" />}
         >
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={sentiment.data ?? []}>
@@ -200,6 +216,7 @@ export function DashboardsPage() {
           description="Распределение источников"
           loading={channels.isFetching}
           empty={!channels.data || channels.data.length === 0}
+          controls={<DateRangePicker value={channelsRange} onChange={setChannelsRange} size="sm" />}
         >
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
@@ -274,6 +291,7 @@ export function DashboardsPage() {
           loading={undervaluedShare.isFetching}
           empty={!undervaluedShare.data || undervaluedShare.data.length === 0}
           className="lg:col-span-2"
+          controls={<DateRangePicker value={shareRange} onChange={setShareRange} size="sm" />}
         >
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={undervaluedShare.data ?? []}>
@@ -308,6 +326,10 @@ export function DashboardsPage() {
       </div>
     </div>
   );
+}
+
+function hasRange(r: DateRangeValue): boolean {
+  return Boolean(r.from || r.to);
 }
 
 function KpiCard({

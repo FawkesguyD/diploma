@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
+import type { User } from '@/api/types';
 import type {
   CursorPage,
   Job,
@@ -14,7 +15,24 @@ import type {
   DistrictPrice,
   ChannelDistribution,
   OverviewKpi,
+  Favorite,
+  Subscription,
+  TrendsLatest,
 } from '@/api/types';
+
+export interface DateRange {
+  from?: Date;
+  to?: Date;
+}
+
+function rangeWindow(range?: DateRange): { since: string; until: string } {
+  if (range?.from || range?.to) {
+    const until = range.to ?? new Date();
+    const since = range.from ?? new Date(until.getTime() - 180 * 86_400_000);
+    return { since: since.toISOString(), until: until.toISOString() };
+  }
+  return dashboardWindow();
+}
 
 export interface MessageFilters {
   topic?: string;
@@ -125,6 +143,111 @@ export interface ObjectFilters {
   object_kind?: string;
 }
 
+export function useObject(id: string | undefined) {
+  return useQuery({
+    queryKey: ['object', id],
+    enabled: Boolean(id),
+    queryFn: async () => {
+      const res = await api.get<RealEstateObject>(`/objects/${id}`);
+      return res.data;
+    },
+  });
+}
+
+export function useFavorites(target_kind?: 'message' | 'object') {
+  return useQuery({
+    queryKey: ['favorites', target_kind ?? 'all'],
+    queryFn: async () => {
+      const res = await api.get<Favorite[]>('/favorites', {
+        params: target_kind ? { target_kind } : undefined,
+      });
+      return res.data;
+    },
+  });
+}
+
+export function useAddFavorite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { target_kind: 'message' | 'object'; target_ref: string }) =>
+      (await api.post<Favorite>('/favorites', data)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['favorites'] }),
+  });
+}
+
+export function useRemoveFavorite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { target_kind: 'message' | 'object'; target_ref: string }) => {
+      await api.delete('/favorites', { data });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['favorites'] }),
+  });
+}
+
+export function useSubscriptions() {
+  return useQuery({
+    queryKey: ['subscriptions'],
+    queryFn: async () => (await api.get<Subscription[]>('/subscriptions')).data,
+  });
+}
+
+export function useCreateSubscription() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { target_kind: 'source' | 'topic' | 'object'; target_ref: string; notify?: boolean }) =>
+      (await api.post<Subscription>('/subscriptions', { notify: false, ...data })).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['subscriptions'] }),
+  });
+}
+
+export function useDeleteSubscription() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/subscriptions/${id}`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['subscriptions'] }),
+  });
+}
+
+export function useUpdateProfile() {
+  return useMutation({
+    mutationFn: async (data: { email?: string; display_name?: string }) =>
+      (await api.patch<User>('/auth/me', data)).data,
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: async (data: { current_password: string; new_password: string }) => {
+      await api.post('/auth/change-password', data);
+    },
+  });
+}
+
+export function useTrendsLatest() {
+  return useQuery({
+    queryKey: ['trends', 'latest'],
+    retry: false,
+    queryFn: async (): Promise<TrendsLatest | null> => {
+      try {
+        return (await api.get<TrendsLatest>('/trends/latest')).data;
+      } catch {
+        return null;
+      }
+    },
+  });
+}
+
+export function useRecomputeTrends() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await api.post<TrendsLatest>('/trends/recompute')).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['trends'] }),
+  });
+}
+
 export function useObjects(filters: ObjectFilters) {
   return useQuery({
     queryKey: ['objects', filters],
@@ -189,11 +312,11 @@ interface OverviewResponse {
   } | null;
 }
 
-export function useOverview() {
+export function useOverview(range?: DateRange) {
   return useQuery({
-    queryKey: ['dashboard', 'overview'],
+    queryKey: ['dashboard', 'overview', range],
     queryFn: async (): Promise<OverviewKpi | null> => {
-      const raw = await safeQuery<OverviewResponse>('/dashboards/overview', dashboardWindow())();
+      const raw = await safeQuery<OverviewResponse>('/dashboards/overview', rangeWindow(range))();
       if (!raw?.kpi) return null;
       const k = raw.kpi;
       return {
@@ -240,15 +363,15 @@ function aggregateByBucket<P extends BucketPoint>(
   return { series };
 }
 
-export function useTopicsActivity(topic: string, granularity: 'hour' | 'day' = 'hour') {
+export function useTopicsActivity(topic: string, granularity: 'hour' | 'day' = 'hour', range?: DateRange) {
   return useQuery({
-    queryKey: ['dashboard', 'topics', topic, granularity],
+    queryKey: ['dashboard', 'topics', topic, granularity, range],
     enabled: Boolean(topic),
     queryFn: async (): Promise<TimeSeries | null> => {
       const raw = await safeQuery<PointsEnvelope<BucketPoint>>('/dashboards/topics/activity', {
         topic,
         granularity,
-        ...dashboardWindow(),
+        ...rangeWindow(range),
       })();
       return aggregateByBucket(raw?.points, (p) => p.messages_total, 'sum');
     },
@@ -256,13 +379,13 @@ export function useTopicsActivity(topic: string, granularity: 'hour' | 'day' = '
   });
 }
 
-export function usePricesTimeseries(granularity: 'day' | 'week' | 'month' = 'month') {
+export function usePricesTimeseries(granularity: 'day' | 'week' | 'month' = 'month', range?: DateRange) {
   return useQuery({
-    queryKey: ['dashboard', 'prices-ts', granularity],
+    queryKey: ['dashboard', 'prices-ts', granularity, range],
     queryFn: async (): Promise<TimeSeries | null> => {
       const raw = await safeQuery<PointsEnvelope<BucketPoint>>('/dashboards/prices/timeseries', {
         granularity,
-        ...dashboardWindow(),
+        ...rangeWindow(range),
       })();
       return aggregateByBucket(raw?.points, (p) => p.avg_price_per_m2, 'avg');
     },
@@ -270,13 +393,13 @@ export function usePricesTimeseries(granularity: 'day' | 'week' | 'month' = 'mon
   });
 }
 
-export function useSentimentByDistrict() {
+export function useSentimentByDistrict(range?: DateRange) {
   return useQuery({
-    queryKey: ['dashboard', 'sentiment-by-district'],
+    queryKey: ['dashboard', 'sentiment-by-district', range],
     queryFn: async (): Promise<DistrictSentiment[] | null> => {
       const raw = await safeQuery<PointsEnvelope<DistrictSentiment>>(
         '/dashboards/sentiment/by-district',
-        dashboardWindow()
+        rangeWindow(range)
       )();
       return raw?.points ?? [];
     },
@@ -290,13 +413,13 @@ interface ListingsByChannelPoint {
   listings_new?: number;
 }
 
-export function useListingsByChannel() {
+export function useListingsByChannel(range?: DateRange) {
   return useQuery({
-    queryKey: ['dashboard', 'listings-by-channel'],
+    queryKey: ['dashboard', 'listings-by-channel', range],
     queryFn: async (): Promise<ChannelDistribution[] | null> => {
       const raw = await safeQuery<PointsEnvelope<ListingsByChannelPoint>>(
         '/dashboards/listings/by-channel',
-        dashboardWindow()
+        rangeWindow(range)
       )();
       const acc = new Map<string, number>();
       for (const p of raw?.points ?? []) {
@@ -374,13 +497,13 @@ export interface TopicCooccurrencePoint {
   weight: number;
 }
 
-export function useTopicCooccurrence(limit = 12) {
+export function useTopicCooccurrence(limit = 12, range?: DateRange) {
   return useQuery({
-    queryKey: ['dashboard', 'topic-cooccurrence', limit],
+    queryKey: ['dashboard', 'topic-cooccurrence', limit, range],
     queryFn: async (): Promise<TopicCooccurrencePoint[] | null> => {
       const raw = await safeQuery<PointsEnvelope<TopicCooccurrencePoint>>(
         '/dashboards/topics/cooccurrence',
-        { ...dashboardWindow(), limit }
+        { ...rangeWindow(range), limit }
       )();
       return raw?.points ?? [];
     },
@@ -395,13 +518,13 @@ export interface UndervaluedSharePoint {
   share: number;
 }
 
-export function useUndervaluedShare() {
+export function useUndervaluedShare(range?: DateRange) {
   return useQuery({
-    queryKey: ['dashboard', 'undervalued-share'],
+    queryKey: ['dashboard', 'undervalued-share', range],
     queryFn: async (): Promise<UndervaluedSharePoint[] | null> => {
       const raw = await safeQuery<PointsEnvelope<UndervaluedSharePoint>>(
         '/dashboards/model-quality/undervalued-share',
-        dashboardWindow()
+        rangeWindow(range)
       )();
       return raw?.points ?? [];
     },

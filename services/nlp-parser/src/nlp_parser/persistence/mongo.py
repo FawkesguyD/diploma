@@ -128,4 +128,22 @@ class AnnotatedMessagesRepo:
         return str(result.inserted_id)
 
 
-__all__ = ["MongoClient", "MessagesRepo", "AnnotatedMessagesRepo"]
+__all__ = ["MongoClient", "MessagesRepo", "AnnotatedMessagesRepo", "TrendsRepo"]
+
+
+class TrendsRepo:
+    COLLECTION = "trends"
+
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self._col = db[self.COLLECTION]
+
+    async def latest(self) -> dict[str, Any] | None:
+        return await self._col.find_one(sort=[("computed_at", -1)])
+
+    async def list_recent(self, limit: int = 14) -> list[dict[str, Any]]:
+        cursor = self._col.find().sort([("computed_at", -1)]).limit(limit)
+        return [doc async for doc in cursor]
+
+    async def insert(self, doc: dict[str, Any]) -> str:
+        result = await self._col.insert_one(doc)
+        return str(result.inserted_id)

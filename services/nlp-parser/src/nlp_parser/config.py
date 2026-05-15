@@ -59,6 +59,14 @@ class Settings(BaseSettings):
     redis_port: int = Field(default=6379, alias="REDIS_PORT")
     redis_password: str | None = Field(default=None, alias="REDIS_PASSWORD")
 
+    anthropic_base_url: str = Field(
+        default="https://aimtr.wellflow.dev/v1", alias="ANTHROPIC_BASE_URL"
+    )
+    anthropic_auth_token: str = Field(default="", alias="ANTHROPIC_AUTH_TOKEN")
+    anthropic_model: str = Field(default="claude-opus-4.7", alias="ANTHROPIC_MODEL")
+    trends_window_hours: int = Field(default=168, alias="TRENDS_WINDOW_HOURS")
+    trends_min_messages: int = Field(default=5, alias="TRENDS_MIN_MESSAGES")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

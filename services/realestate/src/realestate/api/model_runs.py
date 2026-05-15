@@ -55,7 +55,7 @@ async def get_run(run_id: UUID, runs: ModelRunsRepo = Depends(_runs_repo)):
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
 async def trigger_run(body: TriggerRunBody, request: Request):
-    """Публикует команду в `realestate.score` (admin-операция).
+    """Публикует команду в `realestate.score`.
 
     Возвращает `{job_id}` сразу — фактическое выполнение асинхронное.
     """

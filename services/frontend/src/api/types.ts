@@ -206,6 +206,37 @@ export interface ChannelDistribution {
   count: number;
 }
 
+export interface Favorite {
+  id: string;
+  target_kind: 'message' | 'object';
+  target_ref: string;
+  created_at: string;
+}
+
+export interface Subscription {
+  id: string;
+  target_kind: 'source' | 'topic' | 'object';
+  target_ref: string;
+  notify: boolean;
+  created_at: string;
+}
+
+export interface Trend {
+  slug: string;
+  title: string;
+  mentions: number;
+  delta_pct: number | null;
+  summary: string;
+  sample_ids: string[];
+}
+
+export interface TrendsLatest {
+  computed_at: string;
+  period_start: string;
+  period_end: string;
+  items: Trend[];
+}
+
 export interface OverviewKpi {
   messages_total?: number;
   messages_24h?: number;

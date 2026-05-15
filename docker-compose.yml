@@ -331,6 +331,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-https://aimtr.wellflow.dev/v1}
+      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-4.7}
     depends_on:
       postgres:   { condition: service_healthy }
       mongo:      { condition: service_healthy }
@@ -341,7 +344,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=diploma_edge
-      - traefik.http.routers.nlp-parser.rule=PathPrefix(`/api/auth`) || PathPrefix(`/api/sources`) || PathPrefix(`/api/messages`) || PathPrefix(`/api/subscriptions`) || PathPrefix(`/api/jobs`)
+      - traefik.http.routers.nlp-parser.rule=PathPrefix(`/api/auth`) || PathPrefix(`/api/sources`) || PathPrefix(`/api/messages`) || PathPrefix(`/api/subscriptions`) || PathPrefix(`/api/favorites`) || PathPrefix(`/api/trends`) || PathPrefix(`/api/jobs`)
       - traefik.http.routers.nlp-parser.entrypoints=web
       - traefik.http.routers.nlp-parser.middlewares=cors@docker
       - traefik.http.services.nlp-parser.loadbalancer.server.port=8000

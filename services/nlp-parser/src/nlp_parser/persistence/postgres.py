@@ -91,6 +91,41 @@ class UsersRepo:
             raise RuntimeError("INSERT INTO core.users RETURNING вернул NULL")
         return dict(row)
 
+    async def update_profile(
+        self,
+        user_id: UUID,
+        *,
+        email: str | None = None,
+        display_name: str | None = None,
+    ) -> dict[str, Any] | None:
+        sets: list[str] = []
+        params: dict[str, Any] = {"id": user_id}
+        if email is not None:
+            sets.append("email = :email")
+            params["email"] = email
+        if display_name is not None:
+            sets.append("display_name = :display_name")
+            params["display_name"] = display_name
+        if not sets:
+            return await self.get_by_id(user_id)
+        sql = text(
+            f"""
+            UPDATE core.users SET {', '.join(sets)}
+            WHERE id = :id
+            RETURNING id, email, password_hash, display_name, role, is_active, created_at
+            """
+        )
+        async with self._client.session() as session:
+            row = (await session.execute(sql, params)).mappings().first()
+            await session.commit()
+        return dict(row) if row else None
+
+    async def update_password(self, user_id: UUID, password_hash: str) -> None:
+        sql = text("UPDATE core.users SET password_hash = :ph WHERE id = :id")
+        async with self._client.session() as session:
+            await session.execute(sql, {"id": user_id, "ph": password_hash})
+            await session.commit()
+
 
 class SourcesRepo:
     def __init__(self, client: PostgresClient) -> None:
@@ -370,10 +405,90 @@ class ParserJobsRepo:
             await session.commit()
 
 
+class FavoritesRepo:
+    def __init__(self, client: PostgresClient) -> None:
+        self._client = client
+
+    async def list_for_user(
+        self, user_id: UUID, target_kind: str | None = None
+    ) -> list[dict[str, Any]]:
+        clauses = ["user_id = :user_id"]
+        params: dict[str, Any] = {"user_id": user_id}
+        if target_kind is not None:
+            clauses.append("target_kind = :target_kind")
+            params["target_kind"] = target_kind
+        sql = text(
+            f"""
+            SELECT id, user_id, target_kind, target_ref, created_at
+            FROM core.favorites
+            WHERE {' AND '.join(clauses)}
+            ORDER BY created_at DESC
+            """
+        )
+        async with self._client.session() as session:
+            rows = (await session.execute(sql, params)).mappings().all()
+        return [dict(r) for r in rows]
+
+    async def add(
+        self, *, user_id: UUID, target_kind: str, target_ref: str
+    ) -> dict[str, Any]:
+        fav_id = uuid4()
+        sql = text(
+            """
+            INSERT INTO core.favorites (id, user_id, target_kind, target_ref)
+            VALUES (:id, :user_id, :target_kind, :target_ref)
+            ON CONFLICT (user_id, target_kind, target_ref) DO UPDATE
+                SET target_ref = EXCLUDED.target_ref
+            RETURNING id, user_id, target_kind, target_ref, created_at
+            """
+        )
+        async with self._client.session() as session:
+            row = (
+                await session.execute(
+                    sql,
+                    {
+                        "id": fav_id,
+                        "user_id": user_id,
+                        "target_kind": target_kind,
+                        "target_ref": target_ref,
+                    },
+                )
+            ).mappings().first()
+            await session.commit()
+        if row is None:
+            raise RuntimeError("INSERT INTO core.favorites RETURNING вернул NULL")
+        return dict(row)
+
+    async def remove(
+        self, *, user_id: UUID, target_kind: str, target_ref: str
+    ) -> bool:
+        sql = text(
+            """
+            DELETE FROM core.favorites
+            WHERE user_id = :user_id AND target_kind = :target_kind AND target_ref = :target_ref
+            RETURNING id
+            """
+        )
+        async with self._client.session() as session:
+            row = (
+                await session.execute(
+                    sql,
+                    {
+                        "user_id": user_id,
+                        "target_kind": target_kind,
+                        "target_ref": target_ref,
+                    },
+                )
+            ).first()
+            await session.commit()
+        return row is not None
+
+
 __all__ = [
     "PostgresClient",
     "UsersRepo",
     "SourcesRepo",
     "SubscriptionsRepo",
+    "FavoritesRepo",
     "ParserJobsRepo",
 ]

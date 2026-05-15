@@ -66,4 +66,46 @@ async def me(user: dict[str, Any] = Depends(current_user)):
     return _user_to_dict(user)
 
 
+class UpdateProfileRequest(BaseModel):
+    email: EmailStr | None = None
+    display_name: str | None = Field(default=None, max_length=200)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=6, max_length=200)
+
+
+@router.patch("/me")
+async def update_me(
+    body: UpdateProfileRequest,
+    user: dict[str, Any] = Depends(current_user),
+    users: UsersRepo = Depends(_user_repo),
+):
+    if body.email is not None and body.email != user["email"]:
+        existing = await users.get_by_email(body.email)
+        if existing is not None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email already registered")
+    updated = await users.update_profile(
+        UUID(str(user["id"])),
+        email=body.email,
+        display_name=body.display_name,
+    )
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found")
+    return _user_to_dict(updated)
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    body: ChangePasswordRequest,
+    user: dict[str, Any] = Depends(current_user),
+    users: UsersRepo = Depends(_user_repo),
+):
+    if not verify_password(body.current_password, user["password_hash"]):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid current password")
+    await users.update_password(UUID(str(user["id"])), hash_password(body.new_password))
+    return None
+
+
 __all__ = ["router"]

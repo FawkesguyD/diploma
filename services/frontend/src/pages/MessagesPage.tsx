@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useMessagesInfinite, type MessageFilters } from '@/api/hooks';
+import { Link, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useMessagesInfinite, useRecomputeTrends, useTrendsLatest, type MessageFilters } from '@/api/hooks';
 import { useMessageStream } from '@/api/useMessageStream';
 import { MessageCard } from '@/components/MessageCard';
 import { Input } from '@/components/ui/input';
@@ -7,13 +9,56 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card } from '@/components/ui/card';
-import { Inbox, LoaderCircle, Radio } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Inbox, LoaderCircle, Radio, RefreshCcw, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
+import { extractErrorMessage } from '@/api/client';
+import { formatDateTime } from '@/lib/utils';
 import type { Message } from '@/api/types';
 
 const ANY = '__any__';
 
+type ViewMode = 'feed' | 'trends';
+
 export function MessagesPage() {
+  const [params, setParams] = useSearchParams();
+  const view: ViewMode = params.get('view') === 'trends' ? 'trends' : 'feed';
+
+  function setView(v: ViewMode) {
+    const next = new URLSearchParams(params);
+    if (v === 'feed') next.delete('view');
+    else next.set('view', v);
+    setParams(next, { replace: true });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Лента сообщений</h1>
+          <p className="text-sm text-muted-foreground">
+            Поток сообщений и тренды, выявленные ИИ в информационных каналах
+          </p>
+        </div>
+        <Tabs value={view} onValueChange={(v) => setView(v as ViewMode)}>
+          <TabsList>
+            <TabsTrigger value="feed">Лента</TabsTrigger>
+            <TabsTrigger value="trends">
+              <Sparkles className="h-3 w-3" /> Тренды недели
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {view === 'feed' ? <FeedView /> : <TrendsView />}
+    </div>
+  );
+}
+
+function FeedView() {
   const [filters, setFilters] = useState<MessageFilters>({});
   const [liveStream, setLiveStream] = useState(false);
   const [liveBuffer, setLiveBuffer] = useState<Message[]>([]);
@@ -59,14 +104,8 @@ export function MessagesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Лента сообщений</h1>
-          <p className="text-sm text-muted-foreground">
-            Поток сообщений из Telegram, RSS и новостных источников с NLP-аннотациями
-          </p>
-        </div>
+    <>
+      <div className="flex justify-end">
         <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
           <Radio className={liveStream ? 'h-4 w-4 text-primary' : 'h-4 w-4 text-muted-foreground'} />
           <Label htmlFor="live" className="text-sm">Live</Label>
@@ -161,8 +200,122 @@ export function MessagesPage() {
           <span className="text-xs text-muted-foreground">Конец ленты</span>
         )}
       </div>
+    </>
+  );
+}
+
+function TrendsView() {
+  const trends = useTrendsLatest();
+  const recompute = useRecomputeTrends();
+  const data = trends.data;
+
+  async function handleRecompute() {
+    try {
+      await recompute.mutateAsync();
+      toast.success('Тренды пересчитаны');
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-end">
+        <Button onClick={handleRecompute} disabled={recompute.isPending} variant="outline" size="sm">
+          {recompute.isPending ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCcw className="h-4 w-4" />
+          )}
+          Пересчитать
+        </Button>
+      </div>
+
+      {trends.isPending && <Skeleton className="h-96 w-full" />}
+
+      {!trends.isPending && !data && (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 p-12 text-center">
+            <Sparkles className="h-10 w-10 text-muted-foreground" />
+            <h3 className="font-medium">Снимков трендов ещё нет</h3>
+            <p className="text-sm text-muted-foreground">
+              Нажмите «Пересчитать», чтобы построить первый снимок.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {data && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Период</CardTitle>
+            <CardDescription>
+              {formatDateTime(data.period_start)} — {formatDateTime(data.period_end)} · обновлено{' '}
+              {formatDateTime(data.computed_at)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Тренд</TableHead>
+                  <TableHead className="text-right">Упоминаний</TableHead>
+                  <TableHead className="text-right">Δ к прошлому</TableHead>
+                  <TableHead>Описание</TableHead>
+                  <TableHead>Примеры</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.items.map((t) => (
+                  <TableRow key={t.slug}>
+                    <TableCell>
+                      <div className="font-medium">{t.title}</div>
+                      <div className="font-mono text-[10px] text-muted-foreground">#{t.slug}</div>
+                    </TableCell>
+                    <TableCell className="text-right text-lg font-semibold">{t.mentions}</TableCell>
+                    <TableCell className="text-right">
+                      <DeltaBadge delta={t.delta_pct} />
+                    </TableCell>
+                    <TableCell className="max-w-md text-sm text-muted-foreground">{t.summary}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1.5">
+                        {t.sample_ids.slice(0, 5).map((id) => (
+                          <Link
+                            key={id}
+                            to={`/messages/${id}`}
+                            className="font-mono text-[10px] text-primary hover:underline"
+                          >
+                            {id.slice(-6)}
+                          </Link>
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
+}
+
+function DeltaBadge({ delta }: { delta: number | null }) {
+  if (delta === null || delta === undefined) return <Badge variant="muted">новый</Badge>;
+  if (delta > 0)
+    return (
+      <Badge variant="success">
+        <TrendingUp className="h-3 w-3" /> +{delta.toFixed(0)}%
+      </Badge>
+    );
+  if (delta < 0)
+    return (
+      <Badge variant="muted">
+        <TrendingDown className="h-3 w-3" /> {delta.toFixed(0)}%
+      </Badge>
+    );
+  return <Badge variant="outline">±0%</Badge>;
 }
 
 interface FilterOption {

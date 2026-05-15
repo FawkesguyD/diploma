@@ -30,7 +30,7 @@ export function LoginPage() {
         await register({ email, password, display_name: displayName || undefined });
       }
       toast.success(tab === 'login' ? 'Вход выполнен' : 'Аккаунт создан');
-      navigate('/messages', { replace: true });
+      navigate('/home', { replace: true });
     } catch (err) {
       toast.error(extractErrorMessage(err));
     } finally {

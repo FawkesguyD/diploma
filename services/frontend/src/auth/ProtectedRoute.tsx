@@ -20,11 +20,4 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export function AdminRoute({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
-  if (loading) return null;
-  if (!user || user.role !== 'admin') {
-    return <Navigate to="/messages" replace />;
-  }
-  return <>{children}</>;
-}
+

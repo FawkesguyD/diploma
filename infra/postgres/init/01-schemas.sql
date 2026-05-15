@@ -138,3 +138,16 @@ CREATE TABLE IF NOT EXISTS ops.model_runs (
 
 CREATE INDEX IF NOT EXISTS ix_model_runs_module_started
     ON ops.model_runs (module, started_at DESC);
+
+-- ---------------------------------------------------------------------
+-- core.favorites
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS core.favorites (
+    id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      uuid        NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
+    target_kind  text        NOT NULL CHECK (target_kind IN ('message','object')),
+    target_ref   text        NOT NULL,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (user_id, target_kind, target_ref)
+);
+CREATE INDEX IF NOT EXISTS ix_favorites_user_kind ON core.favorites (user_id, target_kind, created_at DESC);

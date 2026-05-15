@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from aisi_contracts.envelope import Envelope
 from aisi_contracts.messages import ParseNewsCommand, ParseTelegramCommand
 
-from nlp_parser.auth.jwt_tools import current_user, require_role
+from nlp_parser.auth.jwt_tools import current_user
 from nlp_parser.persistence.postgres import ParserJobsRepo, SourcesRepo
 
 router = APIRouter(prefix="/api/sources", tags=["sources"])
@@ -71,7 +71,7 @@ async def list_sources(
 async def create_source(
     body: SourceCreate,
     sources: SourcesRepo = Depends(_sources_repo),
-    _admin: dict[str, Any] = Depends(require_role("admin")),
+    _user: dict[str, Any] = Depends(current_user),
 ):
     if body.kind not in _VALID_KINDS:
         raise HTTPException(status_code=400, detail=f"unknown kind '{body.kind}'")
@@ -90,7 +90,7 @@ async def patch_source(
     source_id: UUID,
     body: SourcePatch,
     sources: SourcesRepo = Depends(_sources_repo),
-    _admin: dict[str, Any] = Depends(require_role("admin")),
+    _user: dict[str, Any] = Depends(current_user),
 ):
     row = await sources.patch(
         source_id,
@@ -108,7 +108,7 @@ async def patch_source(
 async def delete_source(
     source_id: UUID,
     sources: SourcesRepo = Depends(_sources_repo),
-    _admin: dict[str, Any] = Depends(require_role("admin")),
+    _user: dict[str, Any] = Depends(current_user),
 ):
     ok = await sources.soft_delete(source_id)
     if not ok:
