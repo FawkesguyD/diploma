@@ -198,7 +198,7 @@ class NlpParserWorker:
             await self._publish_analyze(message_id, correlation_id=correlation_id)
         if job_id is not None:
             await self._jobs.finish(
-                job_id, status="completed", items_collected=len(docs)
+                job_id, status="succeeded", items_collected=len(docs)
             )
         logger.info(
             "parse.%s: source=%s — upsert %d сообщений", kind, source_id, len(docs)
