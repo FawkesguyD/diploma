@@ -172,6 +172,14 @@ function safeQuery<T>(path: string, params?: Record<string, unknown>) {
   };
 }
 
+const DASHBOARD_WINDOW_DAYS = 180;
+
+function dashboardWindow(): { since: string; until: string } {
+  const until = new Date();
+  const since = new Date(until.getTime() - DASHBOARD_WINDOW_DAYS * 86_400_000);
+  return { since: since.toISOString(), until: until.toISOString() };
+}
+
 interface OverviewResponse {
   kpi?: {
     listings_new?: number;
@@ -185,7 +193,7 @@ export function useOverview() {
   return useQuery({
     queryKey: ['dashboard', 'overview'],
     queryFn: async (): Promise<OverviewKpi | null> => {
-      const raw = await safeQuery<OverviewResponse>('/dashboards/overview')();
+      const raw = await safeQuery<OverviewResponse>('/dashboards/overview', dashboardWindow())();
       if (!raw?.kpi) return null;
       const k = raw.kpi;
       return {
@@ -240,6 +248,7 @@ export function useTopicsActivity(topic: string, granularity: 'hour' | 'day' = '
       const raw = await safeQuery<PointsEnvelope<BucketPoint>>('/dashboards/topics/activity', {
         topic,
         granularity,
+        ...dashboardWindow(),
       })();
       return aggregateByBucket(raw?.points, (p) => p.messages_total, 'sum');
     },
@@ -253,6 +262,7 @@ export function usePricesTimeseries(granularity: 'day' | 'week' | 'month' = 'mon
     queryFn: async (): Promise<TimeSeries | null> => {
       const raw = await safeQuery<PointsEnvelope<BucketPoint>>('/dashboards/prices/timeseries', {
         granularity,
+        ...dashboardWindow(),
       })();
       return aggregateByBucket(raw?.points, (p) => p.avg_price_per_m2, 'avg');
     },
@@ -265,7 +275,8 @@ export function useSentimentByDistrict() {
     queryKey: ['dashboard', 'sentiment-by-district'],
     queryFn: async (): Promise<DistrictSentiment[] | null> => {
       const raw = await safeQuery<PointsEnvelope<DistrictSentiment>>(
-        '/dashboards/sentiment/by-district'
+        '/dashboards/sentiment/by-district',
+        dashboardWindow()
       )();
       return raw?.points ?? [];
     },
@@ -284,7 +295,8 @@ export function useListingsByChannel() {
     queryKey: ['dashboard', 'listings-by-channel'],
     queryFn: async (): Promise<ChannelDistribution[] | null> => {
       const raw = await safeQuery<PointsEnvelope<ListingsByChannelPoint>>(
-        '/dashboards/listings/by-channel'
+        '/dashboards/listings/by-channel',
+        dashboardWindow()
       )();
       const acc = new Map<string, number>();
       for (const p of raw?.points ?? []) {
@@ -301,7 +313,10 @@ export function useModelQuality() {
   return useQuery({
     queryKey: ['dashboard', 'model-quality'],
     queryFn: async (): Promise<TimeSeries | null> => {
-      const raw = await safeQuery<PointsEnvelope<BucketPoint>>('/dashboards/model-quality')();
+      const raw = await safeQuery<PointsEnvelope<BucketPoint>>(
+        '/dashboards/model-quality',
+        dashboardWindow()
+      )();
       return aggregateByBucket(raw?.points, (p) => p.mae_pct, 'avg');
     },
     retry: false,
