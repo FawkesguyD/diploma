@@ -1,0 +1,66 @@
+{
+  "rabbit_version": "3.13.0",
+  "users": [
+    {
+      "name": "diploma",
+      "password_hash": "0SOZZl5/CJ0aJ6h+vR4wsI27GX9k1wrhIfBlPj6dHDZk7f7n",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"]
+    }
+  ],
+  "vhosts": [
+    { "name": "/" }
+  ],
+  "permissions": [
+    { "user": "diploma", "vhost": "/", "configure": ".*", "write": ".*", "read": ".*" }
+  ],
+  "parameters": [],
+  "policies": [
+    {
+      "vhost": "/",
+      "name": "dlx-all",
+      "pattern": "^(parse\\.task\\.|nlp\\.|realestate\\.).*",
+      "apply-to": "queues",
+      "definition": {
+        "dead-letter-exchange": "dlx.exchange"
+      },
+      "priority": 0
+    }
+  ],
+  "queues": [
+    { "name": "parse.task.tg",         "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dlx.exchange" } },
+    { "name": "parse.task.news",       "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dlx.exchange" } },
+    { "name": "parse.task.realestate", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dlx.exchange" } },
+    { "name": "nlp.analyze",           "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dlx.exchange" } },
+    { "name": "realestate.score",      "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dlx.exchange" } },
+    { "name": "realestate.rank",       "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dlx.exchange" } },
+
+    { "name": "parse.task.tg.dlq",         "vhost": "/", "durable": true, "auto_delete": false },
+    { "name": "parse.task.news.dlq",       "vhost": "/", "durable": true, "auto_delete": false },
+    { "name": "parse.task.realestate.dlq", "vhost": "/", "durable": true, "auto_delete": false },
+    { "name": "nlp.analyze.dlq",           "vhost": "/", "durable": true, "auto_delete": false },
+    { "name": "realestate.score.dlq",      "vhost": "/", "durable": true, "auto_delete": false },
+    { "name": "realestate.rank.dlq",       "vhost": "/", "durable": true, "auto_delete": false }
+  ],
+  "exchanges": [
+    { "name": "parser.exchange",     "vhost": "/", "type": "x-delayed-message", "durable": true, "auto_delete": false, "internal": false, "arguments": { "x-delayed-type": "topic" } },
+    { "name": "nlp.exchange",        "vhost": "/", "type": "x-delayed-message", "durable": true, "auto_delete": false, "internal": false, "arguments": { "x-delayed-type": "topic" } },
+    { "name": "realestate.exchange", "vhost": "/", "type": "x-delayed-message", "durable": true, "auto_delete": false, "internal": false, "arguments": { "x-delayed-type": "topic" } },
+    { "name": "dlx.exchange",        "vhost": "/", "type": "topic",             "durable": true, "auto_delete": false, "internal": false, "arguments": {} }
+  ],
+  "bindings": [
+    { "source": "parser.exchange",     "vhost": "/", "destination": "parse.task.tg",         "destination_type": "queue", "routing_key": "parse.task.tg",         "arguments": {} },
+    { "source": "parser.exchange",     "vhost": "/", "destination": "parse.task.news",       "destination_type": "queue", "routing_key": "parse.task.news",       "arguments": {} },
+    { "source": "parser.exchange",     "vhost": "/", "destination": "parse.task.realestate", "destination_type": "queue", "routing_key": "parse.task.realestate", "arguments": {} },
+    { "source": "nlp.exchange",        "vhost": "/", "destination": "nlp.analyze",           "destination_type": "queue", "routing_key": "nlp.analyze",           "arguments": {} },
+    { "source": "realestate.exchange", "vhost": "/", "destination": "realestate.score",      "destination_type": "queue", "routing_key": "realestate.score",      "arguments": {} },
+    { "source": "realestate.exchange", "vhost": "/", "destination": "realestate.rank",       "destination_type": "queue", "routing_key": "realestate.rank",       "arguments": {} },
+
+    { "source": "dlx.exchange", "vhost": "/", "destination": "parse.task.tg.dlq",         "destination_type": "queue", "routing_key": "parse.task.tg",         "arguments": {} },
+    { "source": "dlx.exchange", "vhost": "/", "destination": "parse.task.news.dlq",       "destination_type": "queue", "routing_key": "parse.task.news",       "arguments": {} },
+    { "source": "dlx.exchange", "vhost": "/", "destination": "parse.task.realestate.dlq", "destination_type": "queue", "routing_key": "parse.task.realestate", "arguments": {} },
+    { "source": "dlx.exchange", "vhost": "/", "destination": "nlp.analyze.dlq",           "destination_type": "queue", "routing_key": "nlp.analyze",           "arguments": {} },
+    { "source": "dlx.exchange", "vhost": "/", "destination": "realestate.score.dlq",      "destination_type": "queue", "routing_key": "realestate.score",      "arguments": {} },
+    { "source": "dlx.exchange", "vhost": "/", "destination": "realestate.rank.dlq",       "destination_type": "queue", "routing_key": "realestate.rank",       "arguments": {} }
+  ]
+}

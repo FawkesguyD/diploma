@@ -1,0 +1,56 @@
+version: "3"
+
+# Taskfile для корня дипломного проекта.
+# Документация: https://taskfile.dev
+
+tasks:
+  default:
+    desc: Показать список задач
+    cmds:
+      - task --list
+
+  up:
+    desc: Поднять всю инфраструктуру (docker compose up -d --build)
+    cmds:
+      - docker compose up -d --build
+
+  down:
+    desc: Остановить и удалить контейнеры (volumes остаются)
+    cmds:
+      - docker compose down
+
+  logs:
+    desc: Стрим логов всех сервисов
+    cmds:
+      - docker compose logs -f --tail=200
+
+  ps:
+    desc: Статус сервисов
+    cmds:
+      - docker compose ps
+
+  fresh:
+    desc: Полный рестарт с очисткой volume-ов (ВНИМАНИЕ — теряются данные)
+    cmds:
+      - docker compose down -v
+      - docker compose up -d --build
+
+  config:
+    desc: Валидировать и развернуть docker-compose.yml
+    cmds:
+      - docker compose config
+
+  psql:
+    desc: psql в postgres-контейнер
+    cmds:
+      - docker compose exec postgres psql -U ${POSTGRES_USER:-diploma} -d ${POSTGRES_DB:-diploma}
+
+  mongo:
+    desc: mongosh в mongo-контейнер
+    cmds:
+      - docker compose exec mongo mongosh -u ${MONGO_INITDB_ROOT_USERNAME:-diploma} -p ${MONGO_INITDB_ROOT_PASSWORD:-diploma} --authenticationDatabase admin
+
+  clickhouse:
+    desc: clickhouse-client в clickhouse-контейнер
+    cmds:
+      - docker compose exec clickhouse clickhouse-client -u ${CLICKHOUSE_USER:-diploma} --password ${CLICKHOUSE_PASSWORD:-diploma} -d ${CLICKHOUSE_DB:-diploma}

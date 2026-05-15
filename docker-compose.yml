@@ -1,0 +1,422 @@
+# =====================================================================
+# Корневой docker-compose: единая команда для подъёма всей АИС.
+#
+# Сервисы:
+#   traefik        — API gateway (маршрутизация по labels)
+#   postgres       — реляционное хранилище (схемы core/ops)
+#   mongo          — документное хранилище (messages/objects + annotated)
+#   clickhouse     — аналитическое хранилище (events_* + MV)
+#   rabbitmq       — команды между сервисами (x-delayed-message)
+#   kafka          — бизнес-метрики (KRaft, без zookeeper)
+#   minio + init   — артефакты моделей (bucket=models)
+#
+# Бэкенд-сервисы (realestate, nlp-parser, metrics, frontend) пока
+# закомментированы — их Dockerfile'ы добавят отдельные агенты потока 2.
+# =====================================================================
+
+name: diploma
+
+networks:
+  internal:
+    driver: bridge
+  edge:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:
+  clickhouse_data:
+  clickhouse_logs:
+  rabbitmq_data:
+  kafka_data:
+  minio_data:
+
+services:
+  # -------------------------------------------------------------------
+  # Traefik — API gateway. Маршрутизация по labels у бэкенд-сервисов.
+  # -------------------------------------------------------------------
+  traefik:
+    image: traefik:v3.1
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true            # dashboard на :8080 без auth (dev)
+      - --ping=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=diploma_edge
+      - --entrypoints.web.address=:80
+    ports:
+      - "${TRAEFIK_HTTP_PORT:-80}:80"
+      - "${TRAEFIK_DASHBOARD_PORT:-8080}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - edge
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=diploma_edge
+      - traefik.http.middlewares.cors.headers.accessControlAllowOriginList=${FRONTEND_ORIGIN}
+      - traefik.http.middlewares.cors.headers.accessControlAllowMethods=GET,POST,PATCH,DELETE,OPTIONS
+      - traefik.http.middlewares.cors.headers.accessControlAllowHeaders=Authorization,Content-Type
+      - traefik.http.middlewares.cors.headers.accessControlMaxAge=600
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # -------------------------------------------------------------------
+  # PostgreSQL 16. Bootstrap-схемы — infra/postgres/init/*.sql.
+  # -------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # -------------------------------------------------------------------
+  # MongoDB 7. Bootstrap-индексы — infra/mongo/init/*.js.
+  # -------------------------------------------------------------------
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./infra/mongo/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # -------------------------------------------------------------------
+  # ClickHouse 24.x. Bootstrap-DDL — infra/clickhouse/init/*.sql.
+  # -------------------------------------------------------------------
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_TCP_PORT:-9000}:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+      - ./infra/clickhouse/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # -------------------------------------------------------------------
+  # RabbitMQ 3.13 + плагин rabbitmq_delayed_message_exchange.
+  # Топология (exchanges/queues) загружается из definitions.json.
+  # -------------------------------------------------------------------
+  rabbitmq:
+    build:
+      context: ./infra/rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # -------------------------------------------------------------------
+  # Kafka в режиме KRaft (без zookeeper). Авто-создание топиков
+  # включено; продьюсеры/консьюмеры сами создадут metrics.* при
+  # первом обращении, либо см. секцию kafka-init ниже.
+  # -------------------------------------------------------------------
+  kafka:
+    image: apache/kafka:3.7.0
+    restart: unless-stopped
+    environment:
+      # KRaft режим
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: "controller,broker"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      # Listeners
+      KAFKA_LISTENERS: "PLAINTEXT://:29092,CONTROLLER://:9093,EXTERNAL://:9092"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:29092,EXTERNAL://localhost:${KAFKA_PORT:-9092}"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      # Топики и retention
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: "${KAFKA_DEFAULT_PARTITIONS:-3}"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: "1"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_LOG_RETENTION_HOURS: "${KAFKA_RETENTION_HOURS:-168}"
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # -------------------------------------------------------------------
+  # Создание целевых топиков заранее (чтобы дашборды не зависели от
+  # того, кто первый "проснулся"). Идемпотентно (--if-not-exists).
+  # -------------------------------------------------------------------
+  kafka-init:
+    image: apache/kafka:3.7.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - internal
+    restart: "no"
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -eu
+        BS=kafka:29092
+        echo "[init] Creating Kafka topics..."
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server $$BS --create --if-not-exists \
+          --topic metrics.messages --partitions ${KAFKA_DEFAULT_PARTITIONS:-3} --replication-factor 1 \
+          --config retention.ms=$$(( ${KAFKA_RETENTION_HOURS:-168} * 3600 * 1000 ))
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server $$BS --create --if-not-exists \
+          --topic metrics.prices   --partitions ${KAFKA_DEFAULT_PARTITIONS:-3} --replication-factor 1 \
+          --config retention.ms=$$(( ${KAFKA_RETENTION_HOURS:-168} * 3600 * 1000 ))
+        echo "[init] Done."
+
+  # -------------------------------------------------------------------
+  # MinIO + init-контейнер для создания bucket=${MINIO_BUCKET}.
+  # -------------------------------------------------------------------
+  minio:
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_PORT:-9100}:9000"
+      - "${MINIO_CONSOLE_PORT:-9101}:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  minio-init:
+    image: minio/mc:RELEASE.2024-10-08T09-37-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    entrypoint: ["/bin/sh", "/init.sh"]
+    volumes:
+      - ./infra/minio/init.sh:/init.sh:ro
+    networks:
+      - internal
+
+  # =====================================================================
+  # ----- Бэкенд-сервисы: заглушки для агентов потока 2 ----------------
+  #
+  # Эти секции закомментированы целиком — добавляющему сервис агенту
+  # достаточно раскомментировать блок, дописать build.context и при
+  # необходимости env-переменные. Traefik подхватит маршруты автоматом
+  # благодаря labels.
+  # =====================================================================
+
+  nlp-parser:
+    build:
+      context: .
+      dockerfile: services/nlp-parser/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MONGO_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/${MONGO_INITDB_DATABASE}?authSource=admin
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      KAFKA_BOOTSTRAP: kafka:29092
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+    depends_on:
+      postgres:   { condition: service_healthy }
+      mongo:      { condition: service_healthy }
+      rabbitmq:   { condition: service_healthy }
+      kafka:      { condition: service_healthy }
+    networks: [internal, edge]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=diploma_edge
+      - traefik.http.routers.nlp-parser.rule=PathPrefix(`/api/auth`) || PathPrefix(`/api/sources`) || PathPrefix(`/api/messages`) || PathPrefix(`/api/subscriptions`) || PathPrefix(`/api/jobs`)
+      - traefik.http.routers.nlp-parser.entrypoints=web
+      - traefik.http.routers.nlp-parser.middlewares=cors@docker
+      - traefik.http.services.nlp-parser.loadbalancer.server.port=8000
+      - traefik.http.middlewares.cors.headers.accessControlAllowOriginList=${FRONTEND_ORIGIN}
+      - traefik.http.middlewares.cors.headers.accessControlAllowMethods=GET,POST,PATCH,DELETE,OPTIONS
+      - traefik.http.middlewares.cors.headers.accessControlAllowHeaders=Authorization,Content-Type
+      - traefik.http.middlewares.cors.headers.accessControlMaxAge=600
+
+  realestate:
+    build:
+      # context — корень репо, потому что Dockerfile копирует
+      # services/_shared/contracts и model/ml/ помимо собственно сервиса.
+      context: .
+      dockerfile: services/realestate/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MONGO_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/${MONGO_INITDB_DATABASE}?authSource=admin
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      KAFKA_BOOTSTRAP: kafka:29092
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MODEL_KIND: realestate_price
+    depends_on:
+      postgres:   { condition: service_healthy }
+      mongo:      { condition: service_healthy }
+      rabbitmq:   { condition: service_healthy }
+      kafka:      { condition: service_healthy }
+      minio:      { condition: service_healthy }
+    networks: [internal, edge]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=diploma_edge
+      - traefik.http.routers.realestate.rule=PathPrefix(`/api/objects`) || PathPrefix(`/api/model-runs`)
+      - traefik.http.routers.realestate.entrypoints=web
+      - traefik.http.routers.realestate.middlewares=cors@docker
+      - traefik.http.services.realestate.loadbalancer.server.port=8000
+
+  metrics:
+    build:
+      # context — корень репо, потому что Dockerfile копирует
+      # services/_shared/contracts помимо собственно services/metrics.
+      context: .
+      dockerfile: services/metrics/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CLICKHOUSE_URL: http://clickhouse:8123/${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      KAFKA_BOOTSTRAP: kafka:29092
+      BATCH_SIZE: ${METRICS_BATCH_SIZE:-500}
+      BATCH_TIMEOUT_S: ${METRICS_BATCH_TIMEOUT_S:-5}
+    depends_on:
+      clickhouse: { condition: service_healthy }
+      kafka:      { condition: service_healthy }
+    networks: [internal, edge]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=diploma_edge
+      - traefik.http.routers.metrics.rule=PathPrefix(`/api/dashboards`)
+      - traefik.http.routers.metrics.entrypoints=web
+      - traefik.http.routers.metrics.middlewares=cors@docker
+      - traefik.http.services.metrics.loadbalancer.server.port=8000
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: services/scheduler/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      SCHEDULER_TICK_SEC: ${SCHEDULER_TICK_SEC:-15}
+      SCHEDULER_BATCH_LIMIT: ${SCHEDULER_BATCH_LIMIT:-50}
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    networks: [internal, edge]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=diploma_edge
+      - traefik.http.routers.scheduler.rule=PathPrefix(`/api/scheduler`)
+      - traefik.http.routers.scheduler.entrypoints=web
+      - traefik.http.routers.scheduler.middlewares=scheduler-strip@docker,cors@docker
+      - traefik.http.middlewares.scheduler-strip.stripprefix.prefixes=/api/scheduler
+      - traefik.http.services.scheduler.loadbalancer.server.port=8000
+
+  frontend:
+    build:
+      context: ./services/frontend
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    networks: [edge]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=diploma_edge
+      - traefik.http.routers.frontend.rule=PathPrefix(`/`)
+      - traefik.http.routers.frontend.entrypoints=web
+      - traefik.http.routers.frontend.priority=1
+      - traefik.http.services.frontend.loadbalancer.server.port=80

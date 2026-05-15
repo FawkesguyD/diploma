@@ -1,0 +1,46 @@
+{
+  "type": "FeatureCollection",
+  "name": "moscow_districts_placeholder",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "slug": "presnenskiy", "name": "Пресненский" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[37.55, 55.78], [37.62, 55.78], [37.62, 55.74], [37.55, 55.74], [37.55, 55.78]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "slug": "tverskoy", "name": "Тверской" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[37.60, 55.78], [37.66, 55.78], [37.66, 55.75], [37.60, 55.75], [37.60, 55.78]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "slug": "khamovniki", "name": "Хамовники" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[37.55, 55.74], [37.62, 55.74], [37.62, 55.71], [37.55, 55.71], [37.55, 55.74]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "slug": "yakimanka", "name": "Якиманка" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[37.60, 55.74], [37.66, 55.74], [37.66, 55.71], [37.60, 55.71], [37.60, 55.74]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "slug": "arbat", "name": "Арбат" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[37.58, 55.76], [37.61, 55.76], [37.61, 55.745], [37.58, 55.745], [37.58, 55.76]]]
+      }
+    }
+  ]
+}
