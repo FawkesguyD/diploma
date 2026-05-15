@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     worker_prefetch: int = Field(default=8, alias="WORKER_PREFETCH")
     enable_worker_on_startup: bool = Field(default=True, alias="ENABLE_WORKER_ON_STARTUP")
 
+    redis_host: str = Field(default="redis", alias="REDIS_HOST")
+    redis_port: int = Field(default=6379, alias="REDIS_PORT")
+    redis_password: str | None = Field(default=None, alias="REDIS_PASSWORD")
+
     def postgres_sync_dsn(self) -> str:
         """psycopg-вариант DSN, если понадобится Alembic / sync-код."""
         return self.postgres_dsn.replace("+asyncpg", "+psycopg")

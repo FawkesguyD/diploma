@@ -26,6 +26,7 @@ dependencies = [
     "lxml>=5.2",
     "telethon>=1.36",
     "aisi-contracts",
+    "aisi-redis",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +45,7 @@ packages = ["src/nlp_parser"]
 
 [tool.uv.sources]
 aisi-contracts = { path = "../_shared/contracts", editable = true }
+aisi-redis = { path = "../_shared/redis_lib", editable = true }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

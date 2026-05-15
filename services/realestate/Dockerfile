@@ -26,12 +26,14 @@ WORKDIR /opt/build
 
 # Сначала ставим shared contracts (editable не нужен в проде, копируем как пакет).
 COPY services/_shared/contracts /opt/build/_shared/contracts
+COPY services/_shared/redis_lib /opt/build/_shared/redis_lib
 COPY services/realestate/pyproject.toml /opt/build/realestate/pyproject.toml
 
 # Создаём venv и ставим зависимости.
 RUN uv venv /opt/venv \
  && . /opt/venv/bin/activate \
  && uv pip install --python /opt/venv/bin/python /opt/build/_shared/contracts \
+ && uv pip install --python /opt/venv/bin/python /opt/build/_shared/redis_lib \
  && uv pip install --python /opt/venv/bin/python \
         "fastapi>=0.110" "uvicorn[standard]>=0.27" \
         "pydantic>=2.6" "pydantic-settings>=2.2" \
@@ -39,7 +41,7 @@ RUN uv venv /opt/venv \
         "aio-pika>=9.4" "aiokafka>=0.10" \
         "minio>=7.2" "catboost>=1.2" "joblib>=1.3" \
         "numpy>=1.26" "pandas>=2.1" "scikit-learn>=1.3" \
-        "httpx>=0.27" "orjson>=3.10"
+        "httpx>=0.27" "orjson>=3.10" "redis>=5.0"
 
 # ---------- runtime ---------------------------------------------------
 FROM python:${PYTHON_VERSION}-slim AS runtime

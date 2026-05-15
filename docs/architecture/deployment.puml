@@ -32,6 +32,7 @@ node "Хост (Linux, Docker)" {
       database "mongodb\n:27017" as db_mongo
       database "clickhouse\n:8123 / :9000" as db_ch
       database "minio\n:9000 / :9001" as db_minio
+      database "redis\n:6379" as db_redis
     }
   }
 }
@@ -57,10 +58,15 @@ svc_nlp --> db_mongo
 svc_metrics --> db_ch
 svc_metrics --> db_pg
 
+svc_re  --> db_redis : dedup, ratelimit
+svc_nlp --> db_redis : dedup, ratelimit
+
 note bottom
   Деплой: <b>docker compose up -d</b>
   Все сервисы — на одном хосте, изолированы через docker networks.
   edge — открытый, internal — приватный.
+  Redis — вспомогательный слой (ADR-0009),
+  AOF appendfsync=everysec, maxmemory 256mb (allkeys-lru).
 end note
 
 @enduml

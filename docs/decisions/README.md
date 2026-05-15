@@ -37,3 +37,4 @@
 | [0006](0006-tech-stack.md) | Стек: Python + FastAPI + Pydantic (backend), Vue + Vite + Node.js (frontend) | accepted |
 | [0007](0007-configs-in-postgres.md) | Все конфигурации системы — в PostgreSQL | accepted |
 | [0008](0008-postgres-core-ops-schemas.md) | Разделение PostgreSQL на схемы `core` и `ops` | accepted |
+| [0009](0009-redis-auxiliary-layer.md) | Redis — вспомогательный слой (dedup сообщений/объектов + outbound rate-limit парсеров) | accepted |

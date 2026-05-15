@@ -9,7 +9,6 @@ skinparam ArrowColor #555555
 skinparam defaultFontName "Helvetica"
 
 actor "Пользователь\n(аналитик / исследователь)" as user
-actor "Администратор\nсистемы" as admin
 
 rectangle "**АИС**\nИнтеллектуальный анализ\nи визуализация данных" as system #LightBlue
 
@@ -18,7 +17,6 @@ cloud "Новостные сайты\n(RSS / HTML)" as news
 cloud "Сайты объявлений\nнедвижимости" as realestate_sources
 
 user --> system : смотрит ленту,\nдашборды, рейтинги
-admin --> system : настраивает источники,\nмодели, конфиги
 
 tg --> system : сообщения\nканалов
 news --> system : новостные\nстатьи

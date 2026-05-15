@@ -17,6 +17,7 @@ package "Realestate Service" {
   component "Queue Consumer\n(RabbitMQ)" as re_consumer
   component "Metrics Publisher\n(Kafka producer)" as re_metrics
   component "DB Adapter\n(Postgres + Mongo)" as re_db
+  component "Dedup + Ratelimit\n(Redis client)" as re_redis
 
   re_api --> re_predict
   re_api --> re_rank
@@ -24,7 +25,8 @@ package "Realestate Service" {
   re_predict --> re_loader
   re_consumer --> re_predict
   re_consumer --> re_rank
-  re_parser --> re_db
+  re_parser --> re_redis
+  re_redis --> re_db
   re_predict --> re_metrics
   re_rank --> re_db
 }
@@ -43,9 +45,11 @@ package "NLP / Parser Service" {
   component "Queue Consumer\n(RabbitMQ)" as nlp_consumer
   component "Metrics Publisher\n(Kafka producer)" as nlp_metrics
   component "DB Adapter\n(Postgres + Mongo)" as nlp_db
+  component "Dedup + Ratelimit\n(Redis client)" as nlp_redis
 
-  nlp_tg --> nlp_norm
-  nlp_news --> nlp_norm
+  nlp_tg --> nlp_redis
+  nlp_news --> nlp_redis
+  nlp_redis --> nlp_norm
   nlp_norm --> nlp_ad
   nlp_ad --> nlp_clf
   nlp_clf --> nlp_ner
@@ -81,5 +85,26 @@ package "Frontend (SPA)" {
   fe_dash --> fe_api
   fe_top --> fe_api
 }
+
+' === Redis (вспомогательный слой, ADR-0009) ===
+package "Redis (auxiliary)" {
+  component "Dedup keys\n(SET NX EX)\nTTL 24h" as r_dedup
+  component "Rate-limit counters\n(INCR + EXPIRE)\nTTL 60s" as r_rl
+
+  note bottom of r_dedup
+    dedup:msg:{site}:{ext_id}
+    dedup:obj:{site}:{ext_id}
+    dedup:annotate:{msg_id}
+    dedup:eval:{obj_id}
+  end note
+  note bottom of r_rl
+    ratelimit:src:{host}
+  end note
+}
+
+re_redis --> r_dedup
+re_redis --> r_rl
+nlp_redis --> r_dedup
+nlp_redis --> r_rl
 
 @enduml

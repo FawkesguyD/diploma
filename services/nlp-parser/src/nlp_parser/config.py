@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     )
     http_timeout_sec: float = Field(default=15.0, alias="HTTP_TIMEOUT_SEC")
 
+    redis_host: str = Field(default="redis", alias="REDIS_HOST")
+    redis_port: int = Field(default=6379, alias="REDIS_PORT")
+    redis_password: str | None = Field(default=None, alias="REDIS_PASSWORD")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

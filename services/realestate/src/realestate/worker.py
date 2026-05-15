@@ -19,6 +19,8 @@ from aio_pika.abc import AbstractIncomingMessage
 from aisi_contracts.envelope import Envelope
 from aisi_contracts.metrics import PriceMetric
 from aisi_contracts.realestate import ParseRealestateCommand, RankCommand, ScoreCommand
+from aisi_redis import RedisSettings, get_client, is_duplicate
+from aisi_redis.dedup import DEDUP_TTL_INGEST, DEDUP_TTL_PROCESS
 
 from realestate.config import Settings
 from realestate.kafka.publisher import PriceMetricsPublisher
@@ -63,6 +65,13 @@ class RealestateWorker:
         self._realestate_exchange: aio_pika.abc.AbstractExchange | None = None
         self._tasks: list[asyncio.Task[Any]] = []
         self._processed_message_ids: set[str] = set()  # упрощённый idempotency-cache
+        self._redis = get_client(
+            RedisSettings(
+                REDIS_HOST=settings.redis_host,
+                REDIS_PORT=settings.redis_port,
+                REDIS_PASSWORD=settings.redis_password,
+            )
+        )
 
     async def start(self) -> None:
         self._connection = await aio_pika.connect_robust(self._settings.rabbitmq_url)
@@ -179,6 +188,11 @@ class RealestateWorker:
                 if doc is None:
                     errors.append(f"object {object_id} not found")
                     continue
+                if await is_duplicate(
+                    self._redis, "eval", object_id=object_id, ttl=DEDUP_TTL_PROCESS
+                ):
+                    logger.info("score: redis-dedup пропускает %s", object_id)
+                    continue
                 try:
                     result = predict(self._model, doc)
                 except Exception as exc:  # noqa: BLE001
@@ -278,14 +292,23 @@ class RealestateWorker:
         filters = cmd.filters.model_dump(exclude_none=True) if cmd.filters else None
         listings = await parse_source(cmd.source_id, filters)
         object_ids: list[str] = []
+        skipped = 0
         for listing in listings:
+            site = str(listing.get("channel_site") or "unknown")
+            ext_id = str(listing.get("external_id") or "")
+            if ext_id and await is_duplicate(
+                self._redis, "obj", site=site, external_id=ext_id, ttl=DEDUP_TTL_INGEST
+            ):
+                skipped += 1
+                continue
             inserted_id = await self._objects.upsert_by_external_id(listing)
             object_ids.append(inserted_id)
         logger.info(
-            "parse: source=%s triggered_by=%s — upsert %d объектов",
+            "parse: source=%s triggered_by=%s — upsert %d объектов (dedup отсёк %d)",
             cmd.source_id,
             cmd.triggered_by,
             len(object_ids),
+            skipped,
         )
         if not object_ids:
             return

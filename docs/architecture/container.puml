@@ -48,6 +48,7 @@ package "Хранилища" as storage_pkg {
   database "**MongoDB**\nсообщения,\nобъявления" as mongo #LightCoral
   database "**ClickHouse**\nметрики" as ch #LightCoral
   database "**MinIO** (S3)\nML-артефакты" as minio #LightCoral
+  database "**Redis**\ndedup, rate-limit\n(вспомогательный слой)" as redis #Wheat
 }
 
 ' ===========================================================
@@ -91,6 +92,10 @@ nlp        --> mongo       : messages,\nnlp_annotations
 metrics    --> ch          : batch INSERT
 metrics    --> pg          : справочники
 
+' --- Redis: dedup + rate-limit для парсеров ---
+nlp        --> redis       : SET NX (dedup msg),\nINCR (ratelimit src)
+realestate --> redis       : SET NX (dedup obj),\nINCR (ratelimit src)
+
 ' ===========================================================
 '   Поясняющие notes — справа, чтобы не давили на граф.
 ' ===========================================================
@@ -104,6 +109,17 @@ note right of minio
   Структура артефактов:
   models/realestate/<version>/...
   models/nlp/<task>/<version>/...
+end note
+
+note right of redis
+  Вспомогательный слой (ADR-0009).
+  Не хранит бизнес-данные.
+  Роли:
+   • dedup:msg:* — идемпотентность входящих сообщений (TTL 24ч)
+   • dedup:obj:* — идемпотентность объявлений (TTL 24ч)
+   • ratelimit:src:* — глобальный outbound rate-limit (TTL 60с)
+  При недоступности — graceful degrade
+  (Mongo upsert ловит дубли).
 end note
 
 @enduml

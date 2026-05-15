@@ -30,6 +30,7 @@ volumes:
   rabbitmq_data:
   kafka_data:
   minio_data:
+  redis_data:
 
 services:
   # -------------------------------------------------------------------
@@ -239,6 +240,31 @@ services:
         echo "[init] Done."
 
   # -------------------------------------------------------------------
+  # Redis 7. Вспомогательный слой: dedup сообщений/объектов + outbound
+  # rate-limit парсеров. Конфиг — infra/redis/redis.conf, AOF + LRU.
+  # См. ADR-0009 и docs/design/databases/redis.md.
+  # -------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+      - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  # -------------------------------------------------------------------
   # MinIO + init-контейнер для создания bucket=${MINIO_BUCKET}.
   # -------------------------------------------------------------------
   minio:
@@ -302,11 +328,15 @@ services:
       KAFKA_BOOTSTRAP: kafka:29092
       JWT_SECRET: ${JWT_SECRET}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     depends_on:
       postgres:   { condition: service_healthy }
       mongo:      { condition: service_healthy }
       rabbitmq:   { condition: service_healthy }
       kafka:      { condition: service_healthy }
+      redis:      { condition: service_healthy }
     networks: [internal, edge]
     labels:
       - traefik.enable=true
@@ -339,12 +369,16 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MODEL_KIND: realestate_price
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     depends_on:
       postgres:   { condition: service_healthy }
       mongo:      { condition: service_healthy }
       rabbitmq:   { condition: service_healthy }
       kafka:      { condition: service_healthy }
       minio:      { condition: service_healthy }
+      redis:      { condition: service_healthy }
     networks: [internal, edge]
     labels:
       - traefik.enable=true

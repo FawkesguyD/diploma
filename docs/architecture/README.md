@@ -10,6 +10,7 @@
 | [container.puml](container.puml) | C4 L2 — Container | Все контейнеры (сервисы, БД, брокеры) и потоки данных между ними |
 | [component.puml](component.puml) | C4 L3 — Component | Внутреннее устройство каждого сервиса (компоненты и их связи) |
 | [deployment.puml](deployment.puml) | Deployment | Физическое развёртывание: хост, docker-сети, порты |
+| [sequence-redis-ingest.puml](sequence-redis-ingest.puml) | Sequence | Поток ingestion с Redis: rate-limit парсеров и dedup сообщений/объектов |
 
 ## Как смотреть
 
@@ -47,3 +48,4 @@ plantuml -tsvg docs/architecture/*.puml    # → SVG (для диплома)
   - ClickHouse — аналитика и метрики.
 - **MinIO** — версионирование артефактов ML-моделей.
 - **Три прикладных сервиса**: realestate, nlp-parser, metrics + frontend.
+- **Redis — вспомогательный sidecar** (см. [ADR-0009](../decisions/0009-redis-auxiliary-layer.md)): дедупликация входящих сообщений/объектов и outbound rate-limit парсеров. **Не** заменяет RabbitMQ/Kafka/Mongo/ClickHouse и не хранит бизнес-данные.

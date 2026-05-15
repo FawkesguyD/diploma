@@ -1,0 +1,89 @@
+@startuml redis-ingest-sequence
+!theme plain
+title Жизненный цикл сообщения парсинга с Redis (dedup + rate-limit)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceMessageAlign center
+skinparam BoxPadding 15
+
+actor "Scheduler\n(cron)" as sched
+participant "RabbitMQ\n(commands)" as rmq
+participant "ingester\n(worker)" as ing
+database "Redis" as redis
+participant "Telegram /\nAvito API" as ext
+database "MongoDB" as mongo
+participant "RabbitMQ\n(annotate cmd)" as rmq2
+participant "nlp-parser /\nrealestate" as nlp
+
+== Запуск парсинга ==
+
+sched -> rmq : publish("parse", {source_id})
+rmq -> ing : consume cmd
+
+== Outbound rate-limit ==
+
+ing -> redis : INCR ratelimit:src:telegram.org
+redis --> ing : current counter
+ing -> redis : EXPIRE ratelimit:src:telegram.org 60
+note over ing
+  Если cur > limit:
+    ttl = redis.TTL(...)
+    sleep(ttl)
+    retry
+  При Redis down — fail-closed (sleep 1с)
+end note
+
+== HTTP к внешнему источнику ==
+
+ing -> ext : GET history(channel)
+ext --> ing : [msg1, msg2, msg3, msg_old]
+
+== Dedup для каждого сообщения ==
+
+loop msg in batch
+  ing -> redis : SET NX EX dedup:msg:{site}:{ext_id} = "1" (24h)
+  alt новое (NX → OK)
+    redis --> ing : OK
+  else уже видели за 24ч
+    redis --> ing : nil
+    ing -> ing : skip (log dedup_skip)
+  end
+end
+
+== Запись только новых ==
+
+ing -> mongo : insert_many(new_msgs)
+note right of mongo
+  Mongo upsert по external_id —
+  страховка fail-open если Redis недоступен.
+end note
+mongo --> ing : ok
+
+== Передача в pipeline аннотации ==
+
+loop new_msg in new_msgs
+  ing -> rmq2 : publish("annotate", {msg_id})
+end
+
+rmq2 -> nlp : consume
+
+== Защита от повторной аннотации (опционально) ==
+
+nlp -> redis : SET NX EX dedup:annotate:{msg_id} (1h)
+alt новое
+  redis --> nlp : OK
+  nlp -> mongo : insert annotated_messages
+  note over nlp
+    Дальнейшие шаги
+    (Kafka → ClickHouse) —
+    без Redis в этом сценарии.
+  end note
+else повтор (RabbitMQ retry)
+  redis --> nlp : nil
+  nlp -> nlp : skip ML inference (log dedup_skip)
+end
+
+@enduml

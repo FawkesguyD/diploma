@@ -17,6 +17,9 @@ from aisi_contracts.messages import (
     ParseTelegramCommand,
 )
 from aisi_contracts.metrics import MessageMetric
+from aisi_redis import RedisSettings, acquire_token, get_client, is_duplicate
+from aisi_redis.dedup import DEDUP_TTL_INGEST, DEDUP_TTL_PROCESS
+from aisi_redis.ratelimit import limit_for
 
 from nlp_parser.config import Settings
 from nlp_parser.kafka_publisher import MessageMetricsPublisher
@@ -61,6 +64,13 @@ class NlpParserWorker:
         self._nlp_exchange: aio_pika.abc.AbstractExchange | None = None
         self._tasks: list[asyncio.Task[Any]] = []
         self._processed_ids: set[str] = set()
+        self._redis = get_client(
+            RedisSettings(
+                REDIS_HOST=settings.redis_host,
+                REDIS_PORT=settings.redis_port,
+                REDIS_PASSWORD=settings.redis_password,
+            )
+        )
 
     async def start(self) -> None:
         self._connection = await aio_pika.connect_robust(self._settings.rabbitmq_url)
@@ -96,6 +106,16 @@ class NlpParserWorker:
     @staticmethod
     def _parse_envelope(body: bytes) -> dict[str, Any]:
         return orjson.loads(body)
+
+    @staticmethod
+    def _host_for(kind: str, url_or_handle: str) -> str:
+        if kind == "tg":
+            return "telegram.org"
+        from urllib.parse import urlparse
+
+        host = urlparse(url_or_handle).netloc.lower()
+        host = host[4:] if host.startswith("www.") else host
+        return host or "default"
 
     def _seen(self, message_id: str) -> bool:
         if not message_id:
@@ -178,6 +198,8 @@ class NlpParserWorker:
             source_row = await self._sources.get(source_id)
         url_or_handle = (source_row or {}).get("url_or_handle", "")
         config = (source_row or {}).get("config") or {}
+        host = self._host_for(kind, url_or_handle)
+        await acquire_token(self._redis, host, limit_for(host))
         adapter = get_adapter(kind)
         try:
             docs = await adapter(
@@ -193,15 +215,24 @@ class NlpParserWorker:
                 await self._jobs.finish(job_id, status="failed", error=str(exc)[:500])
             raise
         await self._sources.mark_polled(source_id)
+        new_count = 0
         for doc in docs:
+            site = str(doc.get("channel_site") or "unknown")
+            ext_id = str(doc.get("external_id") or "")
+            if ext_id and await is_duplicate(
+                self._redis, "msg", site=site, external_id=ext_id, ttl=DEDUP_TTL_INGEST
+            ):
+                continue
             message_id = await self._messages.upsert_by_external_id(doc)
             await self._publish_analyze(message_id, correlation_id=correlation_id)
+            new_count += 1
         if job_id is not None:
             await self._jobs.finish(
-                job_id, status="succeeded", items_collected=len(docs)
+                job_id, status="succeeded", items_collected=new_count
             )
         logger.info(
-            "parse.%s: source=%s — upsert %d сообщений", kind, source_id, len(docs)
+            "parse.%s: source=%s — upsert %d сообщений (из %d, dedup отсёк %d)",
+            kind, source_id, new_count, len(docs), len(docs) - new_count,
         )
 
     async def _publish_analyze(self, message_id: str, *, correlation_id: Any) -> None:
@@ -223,6 +254,11 @@ class NlpParserWorker:
     async def _handle_analyze(
         self, cmd: AnalyzeMessageCommand, *, correlation_id: Any
     ) -> None:
+        if not cmd.force and await is_duplicate(
+            self._redis, "annotate", object_id=cmd.message_id, ttl=DEDUP_TTL_PROCESS
+        ):
+            logger.info("nlp.analyze: redis-dedup пропускает %s", cmd.message_id)
+            return
         doc = await self._messages.get(cmd.message_id)
         if doc is None:
             logger.warning("nlp.analyze: message %s не найдено", cmd.message_id)

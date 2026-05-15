@@ -23,6 +23,7 @@ dependencies = [
     "httpx>=0.27",
     "orjson>=3.10",
     "aisi-contracts",
+    "aisi-redis",
 ]
 
 [project.optional-dependencies]
@@ -41,6 +42,7 @@ packages = ["src/realestate"]
 
 [tool.uv.sources]
 aisi-contracts = { path = "../_shared/contracts", editable = true }
+aisi-redis = { path = "../_shared/redis_lib", editable = true }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

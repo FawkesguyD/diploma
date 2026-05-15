@@ -18,11 +18,13 @@ RUN pip install --no-cache-dir "uv>=0.5,<0.6"
 WORKDIR /opt/build
 
 COPY services/_shared/contracts /opt/build/_shared/contracts
+COPY services/_shared/redis_lib /opt/build/_shared/redis_lib
 COPY services/nlp-parser/pyproject.toml /opt/build/nlp-parser/pyproject.toml
 
 RUN uv venv /opt/venv \
  && . /opt/venv/bin/activate \
  && uv pip install --python /opt/venv/bin/python /opt/build/_shared/contracts \
+ && uv pip install --python /opt/venv/bin/python /opt/build/_shared/redis_lib \
  && uv pip install --python /opt/venv/bin/python \
         "fastapi>=0.110" "uvicorn[standard]>=0.27" \
         "pydantic>=2.6" "pydantic-settings>=2.2" \
@@ -31,7 +33,7 @@ RUN uv venv /opt/venv \
         "pyjwt>=2.8" "bcrypt>=4.1" "sse-starlette>=2.1" \
         "httpx>=0.27" "orjson>=3.10" "email-validator>=2.1" \
         "feedparser>=6.0" "trafilatura>=1.12" "beautifulsoup4>=4.12" "lxml>=5.2" \
-        "telethon>=1.36"
+        "telethon>=1.36" "redis>=5.0"
 
 FROM python:${PYTHON_VERSION}-slim AS runtime
 
