@@ -61,26 +61,30 @@ export function DashboardsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           icon={<MessageSquare className="h-4 w-4" />}
-          label="Сообщений всего"
+          label="Сообщений (без рекламы)"
           value={overview.data?.messages_total}
           loading={overview.isPending}
         />
         <KpiCard
-          icon={<Activity className="h-4 w-4" />}
-          label="За 24 часа"
-          value={overview.data?.messages_24h}
-          loading={overview.isPending}
-        />
-        <KpiCard
           icon={<Building2 className="h-4 w-4" />}
-          label="Объектов"
+          label="Объявлений новых"
           value={overview.data?.objects_total}
           loading={overview.isPending}
         />
         <KpiCard
+          icon={<Activity className="h-4 w-4" />}
+          label="Недооценённых"
+          value={overview.data?.undervalued_count}
+          loading={overview.isPending}
+        />
+        <KpiCard
           icon={<Database className="h-4 w-4" />}
-          label="Активных источников"
-          value={overview.data?.active_sources}
+          label="Sentiment avg"
+          value={
+            typeof overview.data?.active_sources === 'number'
+              ? Number(overview.data.active_sources).toFixed(2)
+              : undefined
+          }
           loading={overview.isPending}
         />
       </div>

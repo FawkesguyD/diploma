@@ -172,19 +172,77 @@ function safeQuery<T>(path: string, params?: Record<string, unknown>) {
   };
 }
 
+interface OverviewResponse {
+  kpi?: {
+    listings_new?: number;
+    undervalued?: number;
+    messages_non_ad?: number;
+    sentiment_avg?: number | null;
+  } | null;
+}
+
 export function useOverview() {
   return useQuery({
     queryKey: ['dashboard', 'overview'],
-    queryFn: safeQuery<OverviewKpi>('/dashboards/overview'),
+    queryFn: async (): Promise<OverviewKpi | null> => {
+      const raw = await safeQuery<OverviewResponse>('/dashboards/overview')();
+      if (!raw?.kpi) return null;
+      const k = raw.kpi;
+      return {
+        messages_total: k.messages_non_ad,
+        objects_total: k.listings_new,
+        undervalued_count: k.undervalued,
+        active_sources: k.sentiment_avg ?? undefined,
+      } as OverviewKpi;
+    },
     retry: false,
   });
+}
+
+interface BucketPoint {
+  bucket?: string;
+  day?: string;
+  messages_total?: number;
+  avg_price_per_m2?: number;
+  mae_pct?: number;
+}
+interface PointsEnvelope<P> {
+  points: P[];
+}
+
+function aggregateByBucket<P extends BucketPoint>(
+  points: P[] | undefined,
+  pick: (p: P) => number | undefined,
+  agg: 'sum' | 'avg' = 'sum'
+): TimeSeries {
+  if (!points?.length) return { series: [] };
+  const acc = new Map<string, { sum: number; n: number }>();
+  for (const p of points) {
+    const t = p.bucket ?? p.day;
+    const v = pick(p);
+    if (!t || v === undefined || v === null) continue;
+    const cur = acc.get(t) ?? { sum: 0, n: 0 };
+    cur.sum += v;
+    cur.n += 1;
+    acc.set(t, cur);
+  }
+  const series = Array.from(acc.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([t, { sum, n }]) => ({ t, v: agg === 'avg' ? sum / n : sum }));
+  return { series };
 }
 
 export function useTopicsActivity(topic: string, granularity: 'hour' | 'day' = 'hour') {
   return useQuery({
     queryKey: ['dashboard', 'topics', topic, granularity],
     enabled: Boolean(topic),
-    queryFn: safeQuery<TimeSeries>('/dashboards/topics/activity', { topic, granularity }),
+    queryFn: async (): Promise<TimeSeries | null> => {
+      const raw = await safeQuery<PointsEnvelope<BucketPoint>>('/dashboards/topics/activity', {
+        topic,
+        granularity,
+      })();
+      return aggregateByBucket(raw?.points, (p) => p.messages_total, 'sum');
+    },
     retry: false,
   });
 }
@@ -192,7 +250,12 @@ export function useTopicsActivity(topic: string, granularity: 'hour' | 'day' = '
 export function usePricesTimeseries(granularity: 'day' | 'week' | 'month' = 'month') {
   return useQuery({
     queryKey: ['dashboard', 'prices-ts', granularity],
-    queryFn: safeQuery<TimeSeries>('/dashboards/prices/timeseries', { granularity }),
+    queryFn: async (): Promise<TimeSeries | null> => {
+      const raw = await safeQuery<PointsEnvelope<BucketPoint>>('/dashboards/prices/timeseries', {
+        granularity,
+      })();
+      return aggregateByBucket(raw?.points, (p) => p.avg_price_per_m2, 'avg');
+    },
     retry: false,
   });
 }
@@ -200,15 +263,36 @@ export function usePricesTimeseries(granularity: 'day' | 'week' | 'month' = 'mon
 export function useSentimentByDistrict() {
   return useQuery({
     queryKey: ['dashboard', 'sentiment-by-district'],
-    queryFn: safeQuery<DistrictSentiment[]>('/dashboards/sentiment/by-district'),
+    queryFn: async (): Promise<DistrictSentiment[] | null> => {
+      const raw = await safeQuery<PointsEnvelope<DistrictSentiment>>(
+        '/dashboards/sentiment/by-district'
+      )();
+      return raw?.points ?? [];
+    },
     retry: false,
   });
+}
+
+interface ListingsByChannelPoint {
+  channel_site?: string;
+  channel_kind?: string;
+  listings_new?: number;
 }
 
 export function useListingsByChannel() {
   return useQuery({
     queryKey: ['dashboard', 'listings-by-channel'],
-    queryFn: safeQuery<ChannelDistribution[]>('/dashboards/listings/by-channel'),
+    queryFn: async (): Promise<ChannelDistribution[] | null> => {
+      const raw = await safeQuery<PointsEnvelope<ListingsByChannelPoint>>(
+        '/dashboards/listings/by-channel'
+      )();
+      const acc = new Map<string, number>();
+      for (const p of raw?.points ?? []) {
+        const key = p.channel_site ?? p.channel_kind ?? 'unknown';
+        acc.set(key, (acc.get(key) ?? 0) + (p.listings_new ?? 0));
+      }
+      return Array.from(acc.entries()).map(([channel, count]) => ({ channel, count }));
+    },
     retry: false,
   });
 }
@@ -216,15 +300,33 @@ export function useListingsByChannel() {
 export function useModelQuality() {
   return useQuery({
     queryKey: ['dashboard', 'model-quality'],
-    queryFn: safeQuery<TimeSeries>('/dashboards/model-quality'),
+    queryFn: async (): Promise<TimeSeries | null> => {
+      const raw = await safeQuery<PointsEnvelope<BucketPoint>>('/dashboards/model-quality')();
+      return aggregateByBucket(raw?.points, (p) => p.mae_pct, 'avg');
+    },
     retry: false,
   });
+}
+
+interface PricesByDistrictPoint {
+  district_slug: string;
+  avg_price_per_m2: number;
+  listings: number;
 }
 
 export function usePricesByDistrict() {
   return useQuery({
     queryKey: ['dashboard', 'prices-by-district'],
-    queryFn: safeQuery<DistrictPrice[]>('/dashboards/prices/by-district'),
+    queryFn: async (): Promise<DistrictPrice[] | null> => {
+      const raw = await safeQuery<PointsEnvelope<PricesByDistrictPoint>>(
+        '/dashboards/prices/by-district'
+      )();
+      return (raw?.points ?? []).map((p) => ({
+        district_slug: p.district_slug,
+        avg_price_per_m2: p.avg_price_per_m2,
+        count: p.listings,
+      }));
+    },
     retry: false,
   });
 }
