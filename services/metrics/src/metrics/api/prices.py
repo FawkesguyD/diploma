@@ -46,7 +46,7 @@ async def prices_timeseries(
         gran = "day"
     bucket = _TIMESERIES_BUCKET_FN[gran]
 
-    where = ["day >= toDate({since:DateTime})", "day < toDate({until:DateTime})", "city = {city:String}"]
+    where = ["day >= toDate({since:DateTime})", "day <= toDate({until:DateTime})", "city = {city:String}"]
     params: dict[str, Any] = {"since": since, "until": until, "city": city}
     if district:
         where.append("district_slug IN {districts:Array(String)}")

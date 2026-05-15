@@ -111,7 +111,7 @@ async def topics_cooccurrence(
         sum(cooccurrence_count) AS weight
     FROM mv_topic_cooccurrence_daily
     WHERE day >= toDate({since:DateTime})
-      AND day <  toDate({until:DateTime})
+      AND day <= toDate({until:DateTime})
     GROUP BY topic_a, topic_b
     ORDER BY weight DESC
     LIMIT {limit:UInt32}

@@ -33,7 +33,7 @@ async def listings_by_channel(
         sum(undervalued_count)   AS undervalued
     FROM mv_listings_by_channel_daily
     WHERE day >= toDate({since:DateTime})
-      AND day <  toDate({until:DateTime})
+      AND day <= toDate({until:DateTime})
       AND ({kind:String} = '' OR object_kind = {kind:String})
     GROUP BY day, channel_site, object_kind
     ORDER BY day, channel_site

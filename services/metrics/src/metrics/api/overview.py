@@ -30,7 +30,7 @@ SELECT
     sum(listings_new)        AS listings_new,
     sum(undervalued_count)   AS undervalued
 FROM mv_district_activity_daily
-WHERE day >= toDate({since:DateTime}) AND day < toDate({until:DateTime})
+WHERE day >= toDate({since:DateTime}) AND day <= toDate({until:DateTime})
   AND ({city:String} = '' OR city = {city:String})
 """
 

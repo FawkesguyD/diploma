@@ -32,7 +32,7 @@ async def sentiment_by_district(
         avg(sentiment_avg)  AS sentiment_avg
     FROM mv_sentiment_by_district_daily
     WHERE day >= toDate({since:DateTime})
-      AND day <  toDate({until:DateTime})
+      AND day <= toDate({until:DateTime})
     GROUP BY district_slug
     ORDER BY sentiment_avg DESC
     """

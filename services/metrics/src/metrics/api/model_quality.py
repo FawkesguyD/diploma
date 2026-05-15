@@ -33,7 +33,7 @@ async def model_quality(
         sumMerge(undervalued_state)                   AS undervalued
     FROM mv_model_quality_daily
     WHERE day >= toDate({since:DateTime})
-      AND day <  toDate({until:DateTime})
+      AND day <= toDate({until:DateTime})
       AND ({version:String} = '' OR model_version = {version:String})
     GROUP BY day, model_version
     ORDER BY day, model_version
@@ -94,11 +94,11 @@ async def undervalued_share(
     LEFT JOIN (
         SELECT day, sum(listings_new) AS listings_total
         FROM mv_district_activity_daily
-        WHERE day >= toDate({since:DateTime}) AND day < toDate({until:DateTime})
+        WHERE day >= toDate({since:DateTime}) AND day <= toDate({until:DateTime})
         GROUP BY day
     ) AS d ON d.day = m.day
     WHERE m.day >= toDate({since:DateTime})
-      AND m.day <  toDate({until:DateTime})
+      AND m.day <= toDate({until:DateTime})
       AND ({version:String} = '' OR m.model_version = {version:String})
     GROUP BY day
     ORDER BY day

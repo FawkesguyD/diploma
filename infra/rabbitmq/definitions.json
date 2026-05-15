@@ -3,7 +3,7 @@
   "users": [
     {
       "name": "diploma",
-      "password_hash": "0SOZZl5/CJ0aJ6h+vR4wsI27GX9k1wrhIfBlPj6dHDZk7f7n",
+      "password_hash": "06+C/PURCX70/IFT8bypHauBWqRKHNqlI37nX66WqX2bzet9",
       "hashing_algorithm": "rabbit_password_hashing_sha256",
       "tags": ["administrator"]
     }
