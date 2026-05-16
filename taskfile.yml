@@ -40,25 +40,54 @@ tasks:
     cmds:
       - docker compose config
 
-  artifacts:upload:
-    desc: "Загрузить ML-артефакты в MinIO (запускать после обучения модели)"
-    cmds:
-      - |
-        mc alias set local http://localhost:${MINIO_PORT:-9100} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} --quiet
-        mc mirror --overwrite model/ml/artifacts/ local/${MINIO_BUCKET:-models}/ml/artifacts/
-        mc mirror --overwrite model/ml/data/raw/  local/${MINIO_BUCKET:-models}/ml/data/raw/
-        mc mirror --overwrite model/ml/reports/   local/${MINIO_BUCKET:-models}/ml/reports/
-        echo "Артефакты загружены в MinIO bucket '${MINIO_BUCKET:-models}'"
+  # ---------------------------------------------------------------------------
+  # ML-модель: публикация и загрузка
+  #
+  # Схема хранения в MinIO (bucket=models):
+  #   realestate_price/v{N}/bundle.joblib  — веса модели для сервиса
+  #
+  # core.model_registry (Postgres) указывает, какой minio_path активен.
+  # Сервис realestate скачивает bundle.joblib при старте по этому пути.
+  # ---------------------------------------------------------------------------
 
-  artifacts:pull:
-    desc: "Скачать ML-артефакты из MinIO (первый запуск / после обновления модели)"
+  model:publish:
+    desc: "Опубликовать обученную модель в MinIO и зарегистрировать в БД. Использование: task model:publish VERSION=v3 JOBLIB=model/ml/artifacts/best_model_russia2021.joblib"
+    vars:
+      VERSION: '{{.VERSION | default "v2"}}'
+      JOBLIB: '{{.JOBLIB | default "model/ml/artifacts/best_model_russia2021.joblib"}}'
+      MINIO_PATH: "realestate_price/{{.VERSION}}/bundle.joblib"
     cmds:
       - |
+        set -e
+        if [ ! -f "{{.JOBLIB}}" ]; then
+          echo "Ошибка: файл не найден: {{.JOBLIB}}" && exit 1
+        fi
         mc alias set local http://localhost:${MINIO_PORT:-9100} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} --quiet
-        mc mirror local/${MINIO_BUCKET:-models}/ml/artifacts/ model/ml/artifacts/
-        mc mirror local/${MINIO_BUCKET:-models}/ml/data/raw/  model/ml/data/raw/
-        mc mirror local/${MINIO_BUCKET:-models}/ml/reports/   model/ml/reports/
-        echo "Артефакты скачаны из MinIO"
+        mc cp "{{.JOBLIB}}" "local/${MINIO_BUCKET:-models}/{{.MINIO_PATH}}"
+        echo "Загружено: {{.MINIO_PATH}}"
+        docker compose exec -T postgres psql -U ${POSTGRES_USER:-diploma} -d ${POSTGRES_DB:-diploma} -c \
+          "INSERT INTO core.model_registry (task, version, minio_path, is_active)
+           VALUES ('realestate_price', '{{.VERSION}}', '{{.MINIO_PATH}}', true)
+           ON CONFLICT (task, version) DO UPDATE SET minio_path = EXCLUDED.minio_path, is_active = true;
+           UPDATE core.model_registry SET is_active = false
+           WHERE task = 'realestate_price' AND version != '{{.VERSION}}';"
+        echo "Зарегистрировано в core.model_registry, версия {{.VERSION}} активна"
+        echo "Перезапустите сервис: docker compose restart realestate"
+
+  model:pull:
+    desc: "Скачать активную модель из MinIO в model/ml/artifacts/ (для локальной отладки)"
+    cmds:
+      - |
+        set -e
+        mc alias set local http://localhost:${MINIO_PORT:-9100} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} --quiet
+        MINIO_PATH=$(docker compose exec -T postgres psql -U ${POSTGRES_USER:-diploma} -d ${POSTGRES_DB:-diploma} -tAq \
+          -c "SELECT minio_path FROM core.model_registry WHERE task='realestate_price' AND is_active=true;")
+        if [ -z "$MINIO_PATH" ]; then
+          echo "Нет активной модели в core.model_registry" && exit 1
+        fi
+        mkdir -p model/ml/artifacts
+        mc cp "local/${MINIO_BUCKET:-models}/$MINIO_PATH" model/ml/artifacts/best_model_russia2021.joblib
+        echo "Скачано: $MINIO_PATH → model/ml/artifacts/best_model_russia2021.joblib"
 
   psql:
     desc: psql в postgres-контейнер
