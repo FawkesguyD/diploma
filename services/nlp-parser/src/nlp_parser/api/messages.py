@@ -60,6 +60,8 @@ def _annotation_to_dict(doc: dict[str, Any] | None) -> dict[str, Any] | None:
         "entities": doc.get("entities", []),
         "summary": doc.get("summary"),
         "lang": doc.get("lang", "ru"),
+        "is_unwanted": bool(doc.get("is_unwanted", False)),
+        "unwanted_reasons": list(doc.get("unwanted_reasons", []) or []),
     }
 
 
@@ -111,6 +113,9 @@ async def list_messages(
         item = _message_to_dict(doc)
         annotation_doc = annotations.get(item["id"])
         annotation = _annotation_to_dict(annotation_doc)
+
+        if annotation is None or annotation.get("is_unwanted"):
+            continue
 
         if topic is not None:
             topic_slugs = {t.get("slug") for t in (annotation or {}).get("topics", [])}
@@ -188,8 +193,11 @@ async def get_message(
     if doc is None:
         raise HTTPException(status_code=404, detail="message not found")
     annotation = await annotated.get_active(message_id)
+    annotation_dict = _annotation_to_dict(annotation)
+    if annotation_dict is not None and annotation_dict.get("is_unwanted"):
+        raise HTTPException(status_code=404, detail="message not found")
     payload = _message_to_dict(doc)
-    payload["annotation"] = _annotation_to_dict(annotation)
+    payload["annotation"] = annotation_dict
     return payload
 
 

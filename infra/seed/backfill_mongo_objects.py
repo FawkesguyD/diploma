@@ -12,25 +12,35 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import pathlib
 import random
 import subprocess
 import sys
-import uuid
 from datetime import datetime, timedelta, timezone
 
 SOURCE_RE = "bd1bd003-3e86-48b4-8c3b-831c0f670088"
 MODEL_VERSION = "v2_russia2021"
 MODEL_RUN_RE = "bcb993d7-2a51-4da3-9e99-febefcbbca09"
 
+_PRICE_BY_TIER: dict[str, float] = {
+    "central": 520_000,
+    "inner": 360_000,
+    "outer": 240_000,
+}
+
+_CENTROIDS_PATH = pathlib.Path(__file__).with_name("moscow_districts_centroids.json")
+
+
+def _load_moscow_districts() -> list[tuple[str, float, float, float]]:
+    raw = json.loads(_CENTROIDS_PATH.read_text(encoding="utf-8"))
+    out: list[tuple[str, float, float, float]] = []
+    for r in raw:
+        out.append((r["slug"], float(r["lat"]), float(r["lon"]), _PRICE_BY_TIER[r["tier"]]))
+    return out
+
+
 DISTRICTS: dict[str, list[tuple[str, float, float, float]]] = {
-    "Moscow": [
-        ("presnenskiy", 55.760, 37.580, 460_000),
-        ("gagarinskiy", 55.711, 37.580, 380_000),
-        ("ramenki", 55.726, 37.516, 320_000),
-        ("begovoy", 55.781, 37.553, 340_000),
-        ("khamovniki", 55.732, 37.587, 520_000),
-        ("tverskoy", 55.770, 37.605, 540_000),
-    ],
+    "Moscow": _load_moscow_districts(),
     "Saint-Petersburg": [
         ("vyborgskiy", 60.038, 30.343, 220_000),
         ("petrogradskiy", 59.967, 30.310, 280_000),
@@ -68,7 +78,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--months", type=int, default=6)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--n", type=int, default=400)
+    ap.add_argument("--n", type=int, default=2000)
     args = ap.parse_args()
 
     rng = random.Random(args.seed)
@@ -79,7 +89,7 @@ def main() -> None:
     annotated: list[dict] = []
     for i in range(args.n):
         site, src = rng.choice(LISTING_SITES)
-        city = rng.choices(["Moscow", "Saint-Petersburg"], weights=[4, 1], k=1)[0]
+        city = rng.choices(["Moscow", "Saint-Petersburg"], weights=[9, 1], k=1)[0]
         district, lat, lon, base_ppm = rng.choice(DISTRICTS[city])
         rooms = rng.choices([1, 2, 3, 4], weights=[3, 4, 3, 1], k=1)[0]
         area = max(20.0, round(rng.gauss({1: 38, 2: 55, 3: 78, 4: 105}[rooms], 8), 1))

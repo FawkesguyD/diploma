@@ -484,6 +484,19 @@ class FavoritesRepo:
         return row is not None
 
 
+class ForbiddenKeywordsRepo:
+    def __init__(self, client: PostgresClient) -> None:
+        self._client = client
+
+    async def list_active(self) -> list[str]:
+        sql = text(
+            "SELECT lower(keyword) AS keyword FROM core.forbidden_keywords WHERE enabled"
+        )
+        async with self._client.session() as session:
+            rows = (await session.execute(sql)).mappings().all()
+        return [r["keyword"] for r in rows if r["keyword"]]
+
+
 __all__ = [
     "PostgresClient",
     "UsersRepo",
@@ -491,4 +504,5 @@ __all__ = [
     "SubscriptionsRepo",
     "FavoritesRepo",
     "ParserJobsRepo",
+    "ForbiddenKeywordsRepo",
 ]

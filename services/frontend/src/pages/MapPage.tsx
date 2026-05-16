@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CircleMarker, GeoJSON, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
+import { useNavigate } from 'react-router-dom';
+import { GeoJSON, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
+import L, { divIcon, type GeoJSON as LeafletGeoJSON, type Layer, type PathOptions } from 'leaflet';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
-import type { GeoJSON as LeafletGeoJSON, Layer, PathOptions } from 'leaflet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
@@ -10,7 +12,30 @@ import { Switch } from '@/components/ui/switch';
 import { usePricesByDistrict, useSentimentByDistrict, useTopUndervalued } from '@/api/hooks';
 import type { RealEstateObject } from '@/api/types';
 import { formatNumber } from '@/lib/utils';
-import { Map as MapIcon, Search } from 'lucide-react';
+import { ArrowRight, Map as MapIcon, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+function undervaluedIcon(deviation: number): L.DivIcon {
+  const r = Math.min(14, 6 + Math.abs(deviation) / 5);
+  const d = r * 2;
+  return divIcon({
+    className: 'aisi-undervalued-marker',
+    html: `<span style="display:block;width:${d}px;height:${d}px;border-radius:9999px;background:#ef4444;border:1px solid #dc2626;opacity:0.85;box-shadow:0 0 0 1px rgba(255,255,255,0.6)"></span>`,
+    iconSize: [d, d],
+    iconAnchor: [r, r],
+  });
+}
+
+function clusterIcon(cluster: { getChildCount(): number }): L.DivIcon {
+  const n = cluster.getChildCount();
+  const size = n < 10 ? 32 : n < 50 ? 38 : 46;
+  return divIcon({
+    className: 'aisi-cluster',
+    html: `<div style="display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;background:rgba(239,68,68,0.85);color:white;font-weight:600;font-size:12px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25)">${n}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
 
 interface DistrictProps {
   slug: string;
@@ -45,6 +70,7 @@ function centroid(geom: Geometry): [number, number] | null {
 }
 
 export function MapPage() {
+  const navigate = useNavigate();
   const [geo, setGeo] = useState<FeatureCollection<Geometry, DistrictProps> | null>(null);
   const [geoErr, setGeoErr] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('price');
@@ -55,7 +81,7 @@ export function MapPage() {
 
   const prices = usePricesByDistrict();
   const sentiment = useSentimentByDistrict();
-  const undervalued = useTopUndervalued({ city: 'Moscow', limit: 30 });
+  const undervalued = useTopUndervalued({ city: 'Moscow', limit: 200 });
 
   useEffect(() => {
     fetch('/geo/moscow-districts.geojson')
@@ -259,8 +285,10 @@ export function MapPage() {
             <div className="h-[600px] overflow-hidden rounded-md border">
               <MapContainer center={[55.751244, 37.618423]} zoom={10} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                  url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                  subdomains={['a', 'b', 'c', 'd']}
+                  maxZoom={19}
                 />
                 <GeoJSON
                   data={geo}
@@ -270,37 +298,49 @@ export function MapPage() {
                     geoLayerRef.current = r as unknown as LeafletGeoJSON | null;
                   }}
                 />
-                {showUndervalued &&
-                  undervaluedPoints.map(({ o, lat, lon }) => {
-                    const dev = o.evaluation?.deviation_pct ?? 0;
-                    const radius = Math.min(14, 6 + Math.abs(dev) / 5);
-                    return (
-                      <CircleMarker
-                        key={o.id}
-                        center={[lat, lon]}
-                        radius={radius}
-                        pathOptions={{ color: '#dc2626', fillColor: '#ef4444', fillOpacity: 0.7, weight: 1 }}
-                      >
-                        <Popup>
-                          <div className="text-xs">
-                            <div className="font-semibold">
-                              {(o.listing?.rooms ?? '?')}-комн., {formatNumber(o.listing?.area ?? 0)} м²
+                {showUndervalued && (
+                  <MarkerClusterGroup chunkedLoading iconCreateFunction={clusterIcon} showCoverageOnHover={false} maxClusterRadius={50}>
+                    {undervaluedPoints.map(({ o, lat, lon }) => {
+                      const dev = o.evaluation?.deviation_pct ?? 0;
+                      return (
+                        <Marker key={o.id} position={[lat, lon]} icon={undervaluedIcon(dev)}>
+                          <Popup>
+                            <div className="text-xs space-y-1">
+                              <div className="font-semibold">
+                                {(o.listing?.rooms ?? '?')}-комн., {formatNumber(o.listing?.area ?? 0)} м²
+                              </div>
+                              <div>Цена: {formatNumber(o.listing?.price ?? 0)} ₽</div>
+                              <div>
+                                Прогноз: {formatNumber(o.evaluation?.predicted_price ?? 0)} ₽ (
+                                <span className="text-red-600">{dev.toFixed(1)}%</span>)
+                              </div>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => navigate(`/objects?focus=${o.id}`)}
+                                >
+                                  Открыть в Объектах <ArrowRight className="ml-1 h-3 w-3" />
+                                </Button>
+                                {o.url && (
+                                  <a
+                                    href={o.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-primary underline self-center"
+                                  >
+                                    Объявление
+                                  </a>
+                                )}
+                              </div>
                             </div>
-                            <div>Цена: {formatNumber(o.listing?.price ?? 0)} ₽</div>
-                            <div>
-                              Прогноз: {formatNumber(o.evaluation?.predicted_price ?? 0)} ₽ (
-                              <span className="text-red-600">{dev.toFixed(1)}%</span>)
-                            </div>
-                            {o.url && (
-                              <a href={o.url} target="_blank" rel="noreferrer" className="text-primary underline">
-                                Открыть объявление
-                              </a>
-                            )}
-                          </div>
-                        </Popup>
-                      </CircleMarker>
-                    );
-                  })}
+                          </Popup>
+                        </Marker>
+                      );
+                    })}
+                  </MarkerClusterGroup>
+                )}
                 <FlyTo target={flyTarget} />
               </MapContainer>
             </div>

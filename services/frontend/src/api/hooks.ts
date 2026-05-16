@@ -25,7 +25,7 @@ export interface DateRange {
   to?: Date;
 }
 
-function rangeWindow(range?: DateRange): { since: string; until: string } {
+export function rangeWindow(range?: DateRange): { since: string; until: string } {
   if (range?.from || range?.to) {
     const until = range.to ?? new Date();
     const since = range.from ?? new Date(until.getTime() - 180 * 86_400_000);
@@ -284,7 +284,7 @@ export function useTopUndervalued(filters: { city?: string; district?: string; l
   });
 }
 
-function safeQuery<T>(path: string, params?: Record<string, unknown>) {
+export function safeQuery<T>(path: string, params?: Record<string, unknown>) {
   return async (): Promise<T | null> => {
     try {
       const res = await api.get<T>(path, { params });
@@ -297,7 +297,7 @@ function safeQuery<T>(path: string, params?: Record<string, unknown>) {
 
 const DASHBOARD_WINDOW_DAYS = 180;
 
-function dashboardWindow(): { since: string; until: string } {
+export function dashboardWindow(): { since: string; until: string } {
   const until = new Date();
   const since = new Date(until.getTime() - DASHBOARD_WINDOW_DAYS * 86_400_000);
   return { since: since.toISOString(), until: until.toISOString() };

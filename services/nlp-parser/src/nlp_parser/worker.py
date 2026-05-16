@@ -24,13 +24,19 @@ from aisi_redis.ratelimit import limit_for
 from nlp_parser.config import Settings
 from nlp_parser.kafka_publisher import MessageMetricsPublisher
 from nlp_parser.nlp import stub as nlp_stub
+from nlp_parser.nlp.content_filter import ContentFilter
 from nlp_parser.parsing.registry import get_adapter
 from nlp_parser.persistence.mongo import (
     AnnotatedMessagesRepo,
     MessagesRepo,
     MongoClient,
 )
-from nlp_parser.persistence.postgres import ParserJobsRepo, PostgresClient, SourcesRepo
+from nlp_parser.persistence.postgres import (
+    ForbiddenKeywordsRepo,
+    ParserJobsRepo,
+    PostgresClient,
+    SourcesRepo,
+)
 from nlp_parser.pubsub import MessagePubSub
 
 logger = logging.getLogger(__name__)
@@ -59,6 +65,7 @@ class NlpParserWorker:
         self._annotated = AnnotatedMessagesRepo(mongo.db)
         self._sources = SourcesRepo(postgres)
         self._jobs = ParserJobsRepo(postgres)
+        self._content_filter = ContentFilter(ForbiddenKeywordsRepo(postgres))
         self._connection: aio_pika.RobustConnection | None = None
         self._channel: aio_pika.RobustChannel | None = None
         self._nlp_exchange: aio_pika.abc.AbstractExchange | None = None
@@ -270,6 +277,7 @@ class NlpParserWorker:
                 return
         text_value: str = doc.get("text") or ""
         result = nlp_stub.analyze(text_value, lang_hint=cmd.lang_hint or doc.get("lang"))
+        filter_result = await self._content_filter.check(text_value)
         await self._annotated.upsert_version(
             message_id=cmd.message_id,
             model_run_id=self._settings.nlp_model_run_id,
@@ -282,7 +290,15 @@ class NlpParserWorker:
             entities=result.entities,
             lang=result.lang,
             summary=result.summary,
+            is_unwanted=filter_result.is_unwanted,
+            unwanted_reasons=filter_result.reasons,
         )
+        if filter_result.is_unwanted:
+            logger.info(
+                "nlp.analyze: message=%s помечено как unwanted (reasons=%s) — пропускаем метрики/SSE",
+                cmd.message_id, filter_result.reasons,
+            )
+            return
         await self._emit_metric(doc=doc, result=result, correlation_id=correlation_id)
         await self._pubsub.publish(
             {

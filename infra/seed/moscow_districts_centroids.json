@@ -1,0 +1,842 @@
+[
+  {
+    "slug": "krylatskoe",
+    "name": "район Крылатское",
+    "lat": 55.76462,
+    "lon": 37.41459,
+    "tier": "outer"
+  },
+  {
+    "slug": "meschanskiy",
+    "name": "Мещанский район",
+    "lat": 55.77731,
+    "lon": 37.62704,
+    "tier": "central"
+  },
+  {
+    "slug": "sokolniki",
+    "name": "район Сокольники",
+    "lat": 55.80377,
+    "lon": 37.68637,
+    "tier": "inner"
+  },
+  {
+    "slug": "kommunarka",
+    "name": "район Коммунарка",
+    "lat": 55.56561,
+    "lon": 37.4863,
+    "tier": "outer"
+  },
+  {
+    "slug": "khoroshevo-mnevniki",
+    "name": "район Хорошёво-Мнёвники",
+    "lat": 55.7773,
+    "lon": 37.475,
+    "tier": "inner"
+  },
+  {
+    "slug": "schukino",
+    "name": "район Щукино",
+    "lat": 55.7971,
+    "lon": 37.47671,
+    "tier": "outer"
+  },
+  {
+    "slug": "strogino",
+    "name": "район Строгино",
+    "lat": 55.79647,
+    "lon": 37.39212,
+    "tier": "outer"
+  },
+  {
+    "slug": "mitino",
+    "name": "район Митино",
+    "lat": 55.85481,
+    "lon": 37.36018,
+    "tier": "outer"
+  },
+  {
+    "slug": "kurkino",
+    "name": "район Куркино",
+    "lat": 55.89186,
+    "lon": 37.37907,
+    "tier": "outer"
+  },
+  {
+    "slug": "kuzminki",
+    "name": "район Кузьминки",
+    "lat": 55.69948,
+    "lon": 37.77673,
+    "tier": "outer"
+  },
+  {
+    "slug": "donskoy",
+    "name": "Донской район",
+    "lat": 55.71013,
+    "lon": 37.60502,
+    "tier": "inner"
+  },
+  {
+    "slug": "levoberezhnyy",
+    "name": "район Левобережный",
+    "lat": 55.86727,
+    "lon": 37.46786,
+    "tier": "outer"
+  },
+  {
+    "slug": "khovrino",
+    "name": "район Ховрино",
+    "lat": 55.86526,
+    "lon": 37.48935,
+    "tier": "outer"
+  },
+  {
+    "slug": "zapadnoe-degunino",
+    "name": "район Западное Дегунино",
+    "lat": 55.87592,
+    "lon": 37.52008,
+    "tier": "outer"
+  },
+  {
+    "slug": "timiryazevskiy",
+    "name": "Тимирязевский район",
+    "lat": 55.82878,
+    "lon": 37.55656,
+    "tier": "outer"
+  },
+  {
+    "slug": "koptevo",
+    "name": "район Коптево",
+    "lat": 55.82909,
+    "lon": 37.52375,
+    "tier": "outer"
+  },
+  {
+    "slug": "dmitrovskiy",
+    "name": "Дмитровский район",
+    "lat": 55.88589,
+    "lon": 37.5292,
+    "tier": "outer"
+  },
+  {
+    "slug": "severnoe-tushino",
+    "name": "район Северное Тушино",
+    "lat": 55.85541,
+    "lon": 37.42239,
+    "tier": "outer"
+  },
+  {
+    "slug": "sokol",
+    "name": "район Сокол",
+    "lat": 55.80221,
+    "lon": 37.50963,
+    "tier": "inner"
+  },
+  {
+    "slug": "savelovskiy",
+    "name": "Савёловский район",
+    "lat": 55.79929,
+    "lon": 37.56319,
+    "tier": "inner"
+  },
+  {
+    "slug": "otradnoe",
+    "name": "район Отрадное",
+    "lat": 55.8645,
+    "lon": 37.61535,
+    "tier": "outer"
+  },
+  {
+    "slug": "molzhaninovskiy",
+    "name": "Молжаниновский район",
+    "lat": 55.94482,
+    "lon": 37.38358,
+    "tier": "outer"
+  },
+  {
+    "slug": "severnyy",
+    "name": "район Северный",
+    "lat": 55.9422,
+    "lon": 37.55476,
+    "tier": "outer"
+  },
+  {
+    "slug": "vostochnoe-degunino",
+    "name": "район Восточное Дегунино",
+    "lat": 55.87375,
+    "lon": 37.56004,
+    "tier": "outer"
+  },
+  {
+    "slug": "golovinskiy",
+    "name": "Головинский район",
+    "lat": 55.84923,
+    "lon": 37.5035,
+    "tier": "outer"
+  },
+  {
+    "slug": "begovoy",
+    "name": "район Беговой",
+    "lat": 55.78173,
+    "lon": 37.56571,
+    "tier": "inner"
+  },
+  {
+    "slug": "khoroshevskiy",
+    "name": "Хорошёвский район",
+    "lat": 55.78179,
+    "lon": 37.52927,
+    "tier": "outer"
+  },
+  {
+    "slug": "voykovskiy",
+    "name": "Войковский район",
+    "lat": 55.82758,
+    "lon": 37.50074,
+    "tier": "outer"
+  },
+  {
+    "slug": "aeroport",
+    "name": "район Аэропорт",
+    "lat": 55.79976,
+    "lon": 37.55217,
+    "tier": "inner"
+  },
+  {
+    "slug": "yuzhnoe-tushino",
+    "name": "район Южное Тушино",
+    "lat": 55.84442,
+    "lon": 37.42066,
+    "tier": "outer"
+  },
+  {
+    "slug": "pokrovskoe-streshnevo",
+    "name": "район Покровское-Стрешнево",
+    "lat": 55.82596,
+    "lon": 37.44855,
+    "tier": "outer"
+  },
+  {
+    "slug": "beskudnikovskiy",
+    "name": "Бескудниковский район",
+    "lat": 55.86749,
+    "lon": 37.55288,
+    "tier": "outer"
+  },
+  {
+    "slug": "altufevskiy",
+    "name": "Алтуфьевский район",
+    "lat": 55.88029,
+    "lon": 37.58913,
+    "tier": "outer"
+  },
+  {
+    "slug": "lianozovo",
+    "name": "район Лианозово",
+    "lat": 55.90208,
+    "lon": 37.56982,
+    "tier": "outer"
+  },
+  {
+    "slug": "bibirevo",
+    "name": "район Бибирево",
+    "lat": 55.88967,
+    "lon": 37.6114,
+    "tier": "outer"
+  },
+  {
+    "slug": "severnoe-medvedkovo",
+    "name": "район Северное Медведково",
+    "lat": 55.88595,
+    "lon": 37.65545,
+    "tier": "outer"
+  },
+  {
+    "slug": "yuzhnoe-medvedkovo",
+    "name": "район Южное Медведково",
+    "lat": 55.87393,
+    "lon": 37.63079,
+    "tier": "outer"
+  },
+  {
+    "slug": "fili-davydkovo",
+    "name": "район Фили-Давыдково",
+    "lat": 55.71836,
+    "lon": 37.47241,
+    "tier": "outer"
+  },
+  {
+    "slug": "filevskiy-park",
+    "name": "район Филёвский Парк",
+    "lat": 55.74804,
+    "lon": 37.4707,
+    "tier": "outer"
+  },
+  {
+    "slug": "dorogomilovo",
+    "name": "район Дорогомилово",
+    "lat": 55.73879,
+    "lon": 37.53305,
+    "tier": "inner"
+  },
+  {
+    "slug": "ramenki",
+    "name": "район Раменки",
+    "lat": 55.69575,
+    "lon": 37.50166,
+    "tier": "inner"
+  },
+  {
+    "slug": "solntsevo",
+    "name": "район Солнцево",
+    "lat": 55.64743,
+    "lon": 37.39647,
+    "tier": "outer"
+  },
+  {
+    "slug": "novo-peredelkino",
+    "name": "Ново-Переделкино",
+    "lat": 55.64831,
+    "lon": 37.36022,
+    "tier": "outer"
+  },
+  {
+    "slug": "yaroslavskiy",
+    "name": "Ярославский район",
+    "lat": 55.85882,
+    "lon": 37.70113,
+    "tier": "outer"
+  },
+  {
+    "slug": "rostokino",
+    "name": "район Ростокино",
+    "lat": 55.83371,
+    "lon": 37.64975,
+    "tier": "outer"
+  },
+  {
+    "slug": "tekstilschiki",
+    "name": "район Текстильщики",
+    "lat": 55.70638,
+    "lon": 37.7437,
+    "tier": "outer"
+  },
+  {
+    "slug": "lyublino",
+    "name": "район Люблино",
+    "lat": 55.67026,
+    "lon": 37.77067,
+    "tier": "outer"
+  },
+  {
+    "slug": "kapotnya",
+    "name": "район Капотня",
+    "lat": 55.6462,
+    "lon": 37.81841,
+    "tier": "outer"
+  },
+  {
+    "slug": "marino",
+    "name": "район Марьино",
+    "lat": 55.65973,
+    "lon": 37.74153,
+    "tier": "outer"
+  },
+  {
+    "slug": "pechatniki",
+    "name": "район Печатники",
+    "lat": 55.69203,
+    "lon": 37.7024,
+    "tier": "outer"
+  },
+  {
+    "slug": "nagatinskiy-zaton",
+    "name": "район Нагатинский Затон",
+    "lat": 55.66895,
+    "lon": 37.67187,
+    "tier": "outer"
+  },
+  {
+    "slug": "moskvoreche-saburovo",
+    "name": "район Москворечье-Сабурово",
+    "lat": 55.64071,
+    "lon": 37.66132,
+    "tier": "outer"
+  },
+  {
+    "slug": "orekhovo-borisovo-severnoe",
+    "name": "район Орехово-Борисово Северное",
+    "lat": 55.61732,
+    "lon": 37.69908,
+    "tier": "outer"
+  },
+  {
+    "slug": "orekhovo-borisovo-yuzhnoe",
+    "name": "Орехово-Борисово Южное",
+    "lat": 55.60398,
+    "lon": 37.71982,
+    "tier": "outer"
+  },
+  {
+    "slug": "zyablikovo",
+    "name": "район Зябликово",
+    "lat": 55.62387,
+    "lon": 37.74135,
+    "tier": "outer"
+  },
+  {
+    "slug": "brateevo",
+    "name": "район Братеево",
+    "lat": 55.62722,
+    "lon": 37.75732,
+    "tier": "outer"
+  },
+  {
+    "slug": "nagatino-sadovniki",
+    "name": "район Нагатино-Садовники",
+    "lat": 55.66438,
+    "lon": 37.64205,
+    "tier": "outer"
+  },
+  {
+    "slug": "nagornyy",
+    "name": "Нагорный район",
+    "lat": 55.67441,
+    "lon": 37.61148,
+    "tier": "outer"
+  },
+  {
+    "slug": "chertanovo-severnoe",
+    "name": "район Чертаново Северное",
+    "lat": 55.63118,
+    "lon": 37.59432,
+    "tier": "outer"
+  },
+  {
+    "slug": "vykhino-zhulebino",
+    "name": "район Выхино-Жулебино",
+    "lat": 55.69394,
+    "lon": 37.81222,
+    "tier": "outer"
+  },
+  {
+    "slug": "veshnyaki",
+    "name": "район Вешняки",
+    "lat": 55.7299,
+    "lon": 37.81135,
+    "tier": "outer"
+  },
+  {
+    "slug": "biryulevo-vostochnoe",
+    "name": "район Бирюлёво Восточное",
+    "lat": 55.59972,
+    "lon": 37.69026,
+    "tier": "outer"
+  },
+  {
+    "slug": "tsaritsyno",
+    "name": "район Царицыно",
+    "lat": 55.63416,
+    "lon": 37.64342,
+    "tier": "outer"
+  },
+  {
+    "slug": "biryulevo-zapadnoe",
+    "name": "район Бирюлёво Западное",
+    "lat": 55.58733,
+    "lon": 37.64275,
+    "tier": "outer"
+  },
+  {
+    "slug": "chertanovo-yuzhnoe",
+    "name": "район Чертаново Южное",
+    "lat": 55.58999,
+    "lon": 37.59602,
+    "tier": "outer"
+  },
+  {
+    "slug": "chertanovo-tsentralnoe",
+    "name": "район Чертаново Центральное",
+    "lat": 55.61466,
+    "lon": 37.59379,
+    "tier": "outer"
+  },
+  {
+    "slug": "yasenevo",
+    "name": "район Ясенево",
+    "lat": 55.61648,
+    "lon": 37.55373,
+    "tier": "outer"
+  },
+  {
+    "slug": "teplyy-stan",
+    "name": "район Тёплый Стан",
+    "lat": 55.63257,
+    "lon": 37.49384,
+    "tier": "outer"
+  },
+  {
+    "slug": "konkovo",
+    "name": "район Коньково",
+    "lat": 55.64143,
+    "lon": 37.52277,
+    "tier": "outer"
+  },
+  {
+    "slug": "alekseevskiy",
+    "name": "Алексеевский район",
+    "lat": 55.81292,
+    "lon": 37.65106,
+    "tier": "inner"
+  },
+  {
+    "slug": "sviblovo",
+    "name": "район Свиблово",
+    "lat": 55.85586,
+    "lon": 37.6431,
+    "tier": "outer"
+  },
+  {
+    "slug": "ostankinskiy",
+    "name": "Останкинский район",
+    "lat": 55.83687,
+    "lon": 37.61475,
+    "tier": "inner"
+  },
+  {
+    "slug": "marfino",
+    "name": "район Марфино",
+    "lat": 55.83569,
+    "lon": 37.5907,
+    "tier": "outer"
+  },
+  {
+    "slug": "marina-roscha",
+    "name": "район Марьина Роща",
+    "lat": 55.79062,
+    "lon": 37.60909,
+    "tier": "inner"
+  },
+  {
+    "slug": "butyrskiy",
+    "name": "Бутырский район",
+    "lat": 55.8083,
+    "lon": 37.58858,
+    "tier": "inner"
+  },
+  {
+    "slug": "losinoostrovskiy",
+    "name": "Лосиноостровский район",
+    "lat": 55.87826,
+    "lon": 37.68319,
+    "tier": "outer"
+  },
+  {
+    "slug": "babushkinskiy",
+    "name": "Бабушкинский район",
+    "lat": 55.86933,
+    "lon": 37.66513,
+    "tier": "outer"
+  },
+  {
+    "slug": "ryazanskiy",
+    "name": "Рязанский район",
+    "lat": 55.71658,
+    "lon": 37.76859,
+    "tier": "outer"
+  },
+  {
+    "slug": "kosino-ukhtomskiy",
+    "name": "район Косино-Ухтомский",
+    "lat": 55.72025,
+    "lon": 37.90334,
+    "tier": "outer"
+  },
+  {
+    "slug": "nekrasovka",
+    "name": "район Некрасовка",
+    "lat": 55.69459,
+    "lon": 37.94451,
+    "tier": "outer"
+  },
+  {
+    "slug": "novokosino",
+    "name": "район Новокосино",
+    "lat": 55.74128,
+    "lon": 37.86379,
+    "tier": "outer"
+  },
+  {
+    "slug": "severnoe-izmaylovo",
+    "name": "район Северное Измайлово",
+    "lat": 55.80606,
+    "lon": 37.803,
+    "tier": "outer"
+  },
+  {
+    "slug": "vostochnoe-izmaylovo",
+    "name": "район Восточное Измайлово",
+    "lat": 55.79487,
+    "lon": 37.81605,
+    "tier": "outer"
+  },
+  {
+    "slug": "vostochnyy",
+    "name": "район Восточный",
+    "lat": 55.85884,
+    "lon": 37.85715,
+    "tier": "outer"
+  },
+  {
+    "slug": "zamoskvoreche",
+    "name": "район Замоскворечье",
+    "lat": 55.73261,
+    "lon": 37.62936,
+    "tier": "central"
+  },
+  {
+    "slug": "khamovniki",
+    "name": "район Хамовники",
+    "lat": 55.7426,
+    "lon": 37.59011,
+    "tier": "central"
+  },
+  {
+    "slug": "krasnoselskiy",
+    "name": "Красносельский район",
+    "lat": 55.77347,
+    "lon": 37.64893,
+    "tier": "central"
+  },
+  {
+    "slug": "yuzhnoe-butovo",
+    "name": "район Южное Бутово",
+    "lat": 55.52938,
+    "lon": 37.50473,
+    "tier": "outer"
+  },
+  {
+    "slug": "severnoe-butovo",
+    "name": "район Северное Бутово",
+    "lat": 55.57802,
+    "lon": 37.55386,
+    "tier": "outer"
+  },
+  {
+    "slug": "mozhayskiy",
+    "name": "Можайский район",
+    "lat": 55.70282,
+    "lon": 37.38056,
+    "tier": "outer"
+  },
+  {
+    "slug": "arbat",
+    "name": "район Арбат",
+    "lat": 55.75097,
+    "lon": 37.59463,
+    "tier": "central"
+  },
+  {
+    "slug": "tverskoy",
+    "name": "Тверской район",
+    "lat": 55.76988,
+    "lon": 37.6068,
+    "tier": "central"
+  },
+  {
+    "slug": "presnenskiy",
+    "name": "Пресненский район",
+    "lat": 55.76217,
+    "lon": 37.58102,
+    "tier": "central"
+  },
+  {
+    "slug": "taganskiy",
+    "name": "Таганский район",
+    "lat": 55.74374,
+    "lon": 37.66123,
+    "tier": "central"
+  },
+  {
+    "slug": "yakimanka",
+    "name": "район Якиманка",
+    "lat": 55.73042,
+    "lon": 37.61298,
+    "tier": "central"
+  },
+  {
+    "slug": "nizhegorodskiy",
+    "name": "Нижегородский район",
+    "lat": 55.73443,
+    "lon": 37.72081,
+    "tier": "outer"
+  },
+  {
+    "slug": "lefortovo",
+    "name": "район Лефортово",
+    "lat": 55.75521,
+    "lon": 37.70428,
+    "tier": "inner"
+  },
+  {
+    "slug": "yuzhnoportovyy",
+    "name": "Южнопортовый район",
+    "lat": 55.71839,
+    "lon": 37.67944,
+    "tier": "outer"
+  },
+  {
+    "slug": "danilovskiy",
+    "name": "Даниловский район",
+    "lat": 55.71646,
+    "lon": 37.63019,
+    "tier": "inner"
+  },
+  {
+    "slug": "akademicheskiy",
+    "name": "Академический район",
+    "lat": 55.6876,
+    "lon": 37.58411,
+    "tier": "inner"
+  },
+  {
+    "slug": "cheremushki",
+    "name": "район Черёмушки",
+    "lat": 55.66916,
+    "lon": 37.55604,
+    "tier": "outer"
+  },
+  {
+    "slug": "gagarinskiy",
+    "name": "Гагаринский район",
+    "lat": 55.69102,
+    "lon": 37.55205,
+    "tier": "inner"
+  },
+  {
+    "slug": "lomonosovskiy",
+    "name": "Ломоносовский район",
+    "lat": 55.67761,
+    "lon": 37.53953,
+    "tier": "outer"
+  },
+  {
+    "slug": "kotlovka",
+    "name": "район Котловка",
+    "lat": 55.67812,
+    "lon": 37.59955,
+    "tier": "outer"
+  },
+  {
+    "slug": "zyuzino",
+    "name": "район Зюзино",
+    "lat": 55.65787,
+    "lon": 37.59251,
+    "tier": "outer"
+  },
+  {
+    "slug": "obruchevskiy",
+    "name": "Обручевский район",
+    "lat": 55.65814,
+    "lon": 37.5197,
+    "tier": "outer"
+  },
+  {
+    "slug": "prospekt-vernadskogo",
+    "name": "район Проспект Вернадского",
+    "lat": 55.67871,
+    "lon": 37.49403,
+    "tier": "outer"
+  },
+  {
+    "slug": "troparevo-nikulino",
+    "name": "Тропарёво-Никулино",
+    "lat": 55.66623,
+    "lon": 37.47903,
+    "tier": "outer"
+  },
+  {
+    "slug": "ochakovo-matveevskoe",
+    "name": "район Очаково-Матвеевское",
+    "lat": 55.70692,
+    "lon": 37.45476,
+    "tier": "outer"
+  },
+  {
+    "slug": "novogireevo",
+    "name": "район Новогиреево",
+    "lat": 55.74976,
+    "lon": 37.80536,
+    "tier": "outer"
+  },
+  {
+    "slug": "perovo",
+    "name": "район Перово",
+    "lat": 55.75157,
+    "lon": 37.77631,
+    "tier": "outer"
+  },
+  {
+    "slug": "sokolinaya-gora",
+    "name": "район Соколиная Гора",
+    "lat": 55.77969,
+    "lon": 37.72109,
+    "tier": "outer"
+  },
+  {
+    "slug": "preobrazhenskoe",
+    "name": "район Преображенское",
+    "lat": 55.79524,
+    "lon": 37.71763,
+    "tier": "outer"
+  },
+  {
+    "slug": "bogorodskoe",
+    "name": "район Богородское",
+    "lat": 55.81251,
+    "lon": 37.70354,
+    "tier": "outer"
+  },
+  {
+    "slug": "metrogorodok",
+    "name": "район Метрогородок",
+    "lat": 55.84318,
+    "lon": 37.72527,
+    "tier": "outer"
+  },
+  {
+    "slug": "golyanovo",
+    "name": "район Гольяново",
+    "lat": 55.82086,
+    "lon": 37.78746,
+    "tier": "outer"
+  },
+  {
+    "slug": "izmaylovo",
+    "name": "район Измайлово",
+    "lat": 55.78741,
+    "lon": 37.77643,
+    "tier": "outer"
+  },
+  {
+    "slug": "ivanovskoe",
+    "name": "район Ивановское",
+    "lat": 55.76912,
+    "lon": 37.82232,
+    "tier": "outer"
+  },
+  {
+    "slug": "scherbinka",
+    "name": "район Щербинка",
+    "lat": 55.51016,
+    "lon": 37.50471,
+    "tier": "outer"
+  },
+  {
+    "slug": "basmannyy",
+    "name": "Басманный район",
+    "lat": 55.76487,
+    "lon": 37.66345,
+    "tier": "central"
+  }
+]

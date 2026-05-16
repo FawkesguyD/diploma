@@ -8,7 +8,9 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from nlp_parser.config import get_settings
 from nlp_parser.llm.anthropic_client import extract_trends
+from nlp_parser.nlp.content_filter import ContentFilter
 from nlp_parser.persistence.mongo import TrendsRepo
+from nlp_parser.persistence.postgres import ForbiddenKeywordsRepo, PostgresClient
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,9 @@ async def recompute_trends(db: AsyncIOMotorDatabase) -> dict[str, Any] | None:
 
     annotated_col = db["annotated_messages"]
     messages_col = db["messages"]
+
+    pg_client = PostgresClient(settings)
+    content_filter = ContentFilter(ForbiddenKeywordsRepo(pg_client))
 
     pipeline = [
         {"$match": {"published_at": {"$gte": period_start}}},
@@ -52,9 +57,14 @@ async def recompute_trends(db: AsyncIOMotorDatabase) -> dict[str, Any] | None:
         },
         {
             "$match": {
-                "$or": [
-                    {"annotation": None},
-                    {"annotation.is_ad": {"$ne": True}},
+                "$and": [
+                    {
+                        "$or": [
+                            {"annotation": None},
+                            {"annotation.is_ad": {"$ne": True}},
+                        ]
+                    },
+                    {"annotation.is_unwanted": {"$ne": True}},
                 ]
             }
         },
@@ -64,51 +74,68 @@ async def recompute_trends(db: AsyncIOMotorDatabase) -> dict[str, Any] | None:
     async for doc in messages_col.aggregate(pipeline):
         docs.append(doc)
 
-    if len(docs) < settings.trends_min_messages:
-        logger.info(
-            "recompute_trends: only %d messages in window (min %d) — skip",
-            len(docs),
-            settings.trends_min_messages,
-        )
-        _ = annotated_col
-        return None
+    try:
+        if len(docs) < settings.trends_min_messages:
+            logger.info(
+                "recompute_trends: only %d messages in window (min %d) — skip",
+                len(docs),
+                settings.trends_min_messages,
+            )
+            _ = annotated_col
+            return None
 
-    compact: list[dict[str, Any]] = []
-    for d in docs:
-        text = d.get("text") or d.get("content") or ""
-        ann = d.get("annotation") or {}
-        topics = [t.get("slug") for t in ann.get("topics", []) if t.get("slug")]
-        compact.append(
-            {
-                "id": str(d["_id"]),
-                "text": text[:300],
-                "topics": topics,
-                "published_at": d.get("published_at"),
-            }
-        )
+        compact: list[dict[str, Any]] = []
+        for d in docs:
+            text = d.get("text") or d.get("content") or ""
+            ann = d.get("annotation") or {}
+            topics = [t.get("slug") for t in ann.get("topics", []) if t.get("slug")]
+            compact.append(
+                {
+                    "id": str(d["_id"]),
+                    "text": text[:300],
+                    "topics": topics,
+                    "published_at": d.get("published_at"),
+                }
+            )
 
-    trends = await extract_trends(compact, top_n=10)
+        trends = await extract_trends(compact, top_n=10)
 
-    repo = TrendsRepo(db)
-    prev = await repo.latest()
-    prev_mentions: dict[str, int] = {}
-    if prev:
-        for t in prev.get("trends", []):
-            slug = t.get("slug")
-            if slug:
-                prev_mentions[slug] = int(t.get("mentions", 0))
+        clean_trends: list[dict[str, Any]] = []
+        for t in trends:
+            blob = " ".join(
+                str(v) for v in (t.get("title"), t.get("summary"), t.get("slug")) if v
+            )
+            verdict = await content_filter.check(blob)
+            if verdict.is_unwanted:
+                logger.info(
+                    "recompute_trends: skip trend slug=%s (reasons=%s)",
+                    t.get("slug"), verdict.reasons,
+                )
+                continue
+            clean_trends.append(t)
 
-    snapshot = {
-        "computed_at": _utcnow(),
-        "window_hours": settings.trends_window_hours,
-        "period_start": period_start,
-        "period_end": period_end,
-        "trends": trends,
-        "prev_mentions": prev_mentions,
-    }
-    inserted_id = await repo.insert(snapshot)
-    snapshot["_id"] = inserted_id
-    return snapshot
+        repo = TrendsRepo(db)
+        prev = await repo.latest()
+        prev_mentions: dict[str, int] = {}
+        if prev:
+            for t in prev.get("trends", []):
+                slug = t.get("slug")
+                if slug:
+                    prev_mentions[slug] = int(t.get("mentions", 0))
+
+        snapshot = {
+            "computed_at": _utcnow(),
+            "window_hours": settings.trends_window_hours,
+            "period_start": period_start,
+            "period_end": period_end,
+            "trends": clean_trends,
+            "prev_mentions": prev_mentions,
+        }
+        inserted_id = await repo.insert(snapshot)
+        snapshot["_id"] = inserted_id
+        return snapshot
+    finally:
+        await pg_client.close()
 
 
 __all__ = ["recompute_trends"]

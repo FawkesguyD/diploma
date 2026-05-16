@@ -102,6 +102,8 @@ class AnnotatedMessagesRepo:
         entities: list[dict[str, Any]],
         lang: str,
         summary: str | None = None,
+        is_unwanted: bool = False,
+        unwanted_reasons: list[str] | None = None,
     ) -> str:
         oid = ObjectId(message_id)
         now = _utcnow()
@@ -120,6 +122,8 @@ class AnnotatedMessagesRepo:
             "entities": entities,
             "lang": lang,
             "summary": summary,
+            "is_unwanted": is_unwanted,
+            "unwanted_reasons": unwanted_reasons or [],
             "is_active": True,
             "created_at": now,
             "updated_at": now,

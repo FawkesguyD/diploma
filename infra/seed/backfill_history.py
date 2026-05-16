@@ -14,7 +14,9 @@ from __future__ import annotations
 import argparse
 import csv
 import io
+import json
 import math
+import pathlib
 import random
 import subprocess
 import sys
@@ -43,16 +45,26 @@ TOPICS = [
 
 DEVELOPERS = ["Capital Group", "ПИК", "Самолёт", "Эталон", "ЛСР"]
 
+_PRICE_BY_TIER: dict[str, float] = {
+    "central": 520_000,
+    "inner": 360_000,
+    "outer": 240_000,
+}
+
+_CENTROIDS_PATH = pathlib.Path(__file__).with_name("moscow_districts_centroids.json")
+
+
+def _load_moscow_districts() -> list[tuple[str, float, float, float]]:
+    raw = json.loads(_CENTROIDS_PATH.read_text(encoding="utf-8"))
+    return [
+        (r["slug"], float(r["lat"]), float(r["lon"]), _PRICE_BY_TIER[r["tier"]])
+        for r in raw
+    ]
+
+
 # city -> [(slug, lat, lon, base_price_per_m2)]
 DISTRICTS: dict[str, list[tuple[str, float, float, float]]] = {
-    "Moscow": [
-        ("presnenskiy", 55.760, 37.580, 460_000),
-        ("gagarinskiy", 55.711, 37.580, 380_000),
-        ("ramenki", 55.726, 37.516, 320_000),
-        ("begovoy", 55.781, 37.553, 340_000),
-        ("khamovniki", 55.732, 37.587, 520_000),
-        ("tverskoy", 55.770, 37.605, 540_000),
-    ],
+    "Moscow": _load_moscow_districts(),
     "Saint-Petersburg": [
         ("vyborgskiy", 60.038, 30.343, 220_000),
         ("petrogradskiy", 59.967, 30.310, 280_000),
@@ -182,7 +194,7 @@ def gen_listings_pool(rng: random.Random, n: int = 350) -> list[ListingFixture]:
     for i in range(n):
         site, src = rng.choice(LISTING_SITES)
         city = rng.choices(["Moscow", "Saint-Petersburg"],
-                            weights=[4, 1], k=1)[0]
+                            weights=[9, 1], k=1)[0]
         district, _, _, base_ppm = rng.choice(DISTRICTS[city])
         rooms = rng.choices([1, 2, 3, 4], weights=[3, 4, 3, 1], k=1)[0]
         area = round(rng.gauss({1: 38, 2: 55, 3: 78, 4: 105}[rooms], 8), 1)
@@ -301,7 +313,7 @@ def main() -> None:
     print(f"        {len(msg_rows):,} rows")
 
     print("[seed] generating events_prices …")
-    pool = gen_listings_pool(rng, n=400)
+    pool = gen_listings_pool(rng, n=2000)
     price_rows = gen_prices(rng, start, end, pool)
     print(f"        {len(price_rows):,} rows over {len(pool)} listings")
 
