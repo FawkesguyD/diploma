@@ -40,6 +40,26 @@ tasks:
     cmds:
       - docker compose config
 
+  artifacts:upload:
+    desc: "Загрузить ML-артефакты в MinIO (запускать после обучения модели)"
+    cmds:
+      - |
+        mc alias set local http://localhost:${MINIO_PORT:-9100} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} --quiet
+        mc mirror --overwrite model/ml/artifacts/ local/${MINIO_BUCKET:-models}/ml/artifacts/
+        mc mirror --overwrite model/ml/data/raw/  local/${MINIO_BUCKET:-models}/ml/data/raw/
+        mc mirror --overwrite model/ml/reports/   local/${MINIO_BUCKET:-models}/ml/reports/
+        echo "Артефакты загружены в MinIO bucket '${MINIO_BUCKET:-models}'"
+
+  artifacts:pull:
+    desc: "Скачать ML-артефакты из MinIO (первый запуск / после обновления модели)"
+    cmds:
+      - |
+        mc alias set local http://localhost:${MINIO_PORT:-9100} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} --quiet
+        mc mirror local/${MINIO_BUCKET:-models}/ml/artifacts/ model/ml/artifacts/
+        mc mirror local/${MINIO_BUCKET:-models}/ml/data/raw/  model/ml/data/raw/
+        mc mirror local/${MINIO_BUCKET:-models}/ml/reports/   model/ml/reports/
+        echo "Артефакты скачаны из MinIO"
+
   psql:
     desc: psql в postgres-контейнер
     cmds:

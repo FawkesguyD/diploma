@@ -36,11 +36,11 @@ node_modules/
 .env
 .env.*
 
-# Local generated project outputs
-data/raw/
-reports/
-ml/data/raw/
-ml/reports/
+# ML artifacts and data (хранятся в MinIO, скачиваются через: task artifacts:pull)
+model/ml/artifacts/*.joblib
+model/ml/artifacts/russia2021_prepared/
+model/ml/data/raw/
+model/ml/reports/
 
 # Docker overrides
 docker-compose.override.yml
