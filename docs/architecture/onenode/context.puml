@@ -1,6 +1,5 @@
 @startuml context
 !theme plain
-title АИС с интеллектуальным анализом и визуализацией данных — контекстная диаграмма (C4: Level 1)
 
 skinparam backgroundColor #FFFFFF
 skinparam roundCorner 10
@@ -12,7 +11,7 @@ actor "Пользователь\n(аналитик / исследователь)
 
 rectangle "**АИС**\nИнтеллектуальный анализ\nи визуализация данных" as system #LightBlue
 
-cloud "Telegram\n(каналы)" as tg
+cloud "Информационные\n(каналы)" as tg
 cloud "Новостные сайты\n(RSS / HTML)" as news
 cloud "Сайты объявлений\nнедвижимости" as realestate_sources
 
@@ -21,13 +20,5 @@ user --> system : смотрит ленту,\nдашборды, рейтинги
 tg --> system : сообщения\nканалов
 news --> system : новостные\nстатьи
 realestate_sources --> system : объявления\nс параметрами
-
-note bottom of system
-  Собирает информационные потоки,
-  выполняет интеллектуальный анализ
-  (классификация, NER, тональность,
-  выявление недооценённых объектов)
-  и предоставляет веб-визуализацию.
-end note
 
 @enduml

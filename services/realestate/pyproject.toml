@@ -24,6 +24,7 @@ dependencies = [
     "orjson>=3.10",
     "aisi-contracts",
     "aisi-redis",
+    "aisi-obs",
 ]
 
 [project.optional-dependencies]
@@ -43,6 +44,7 @@ packages = ["src/realestate"]
 [tool.uv.sources]
 aisi-contracts = { path = "../_shared/contracts", editable = true }
 aisi-redis = { path = "../_shared/redis_lib", editable = true }
+aisi-obs = { path = "../_shared/observability", editable = true }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

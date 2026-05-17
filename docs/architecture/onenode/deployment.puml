@@ -1,6 +1,5 @@
 @startuml deployment
 !theme plain
-title АИС — диаграмма развёртывания (один хост, docker compose)
 
 skinparam backgroundColor #FFFFFF
 skinparam roundCorner 10
@@ -60,13 +59,5 @@ svc_metrics --> db_pg
 
 svc_re  --> db_redis : dedup, ratelimit
 svc_nlp --> db_redis : dedup, ratelimit
-
-note bottom
-  Деплой: <b>docker compose up -d</b>
-  Все сервисы — на одном хосте, изолированы через docker networks.
-  edge — открытый, internal — приватный.
-  Redis — вспомогательный слой (ADR-0009),
-  AOF appendfsync=everysec, maxmemory 256mb (allkeys-lru).
-end note
 
 @enduml

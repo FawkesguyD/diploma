@@ -33,8 +33,8 @@ package "Realestate Service" {
 
 ' === NLP / Parser Service ===
 package "NLP / Parser Service" {
-  component "Telegram Collector\n(Telethon)" as nlp_tg
-  component "News Collector\n(RSS / HTML)" as nlp_news
+  component "Channels Collector" as nlp_tg
+  component "Collector\n(RSS / HTML)" as nlp_news
   component "Message Normalizer" as nlp_norm
   component "Classifier\n(тематики)" as nlp_clf
   component "NER\n(локации, застройщики)" as nlp_ner
@@ -75,21 +75,19 @@ package "Metrics / Dashboards Service" {
 ' === Frontend ===
 package "Frontend (SPA)" {
   component "Feed UI\n(лента сообщений)" as fe_feed
-  component "Filters\n(тема / тональность / время)" as fe_filters
   component "Dashboards UI\n(временные ряды,\nкарта районов)" as fe_dash
-  component "Top Listings UI\n(недооценённые объекты)" as fe_top
+  component "Top Listings UI\n(объекты)" as fe_top
   component "API Client" as fe_api
 
   fe_feed --> fe_api
-  fe_filters --> fe_feed
   fe_dash --> fe_api
   fe_top --> fe_api
 }
 
 ' === Redis (вспомогательный слой, ADR-0009) ===
-package "Redis (auxiliary)" {
-  component "Dedup keys\n(SET NX EX)\nTTL 24h" as r_dedup
-  component "Rate-limit counters\n(INCR + EXPIRE)\nTTL 60s" as r_rl
+package "Redis" {
+  component "Dedup keys\nTTL 24h" as r_dedup
+  component "Rate-limit counters\nTTL 60s" as r_rl
 
   note bottom of r_dedup
     dedup:msg:{site}:{ext_id}

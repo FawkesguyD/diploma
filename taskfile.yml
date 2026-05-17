@@ -89,6 +89,66 @@ tasks:
         mc cp "local/${MINIO_BUCKET:-models}/$MINIO_PATH" model/ml/artifacts/best_model_russia2021.joblib
         echo "Скачано: $MINIO_PATH → model/ml/artifacts/best_model_russia2021.joblib"
 
+  # ---------------------------------------------------------------------------
+  # Observability: Grafana · Prometheus · Loki · Tempo
+  # ---------------------------------------------------------------------------
+
+  obs:up:
+    desc: "Поднять observability стек (Grafana :3000, Prometheus :9090)"
+    cmds:
+      - docker compose up -d prometheus grafana loki promtail tempo node-exporter cadvisor
+      - echo "Grafana → http://localhost:${GRAFANA_PORT:-3000}  (admin/admin)"
+      - echo "Prometheus → http://localhost:${PROMETHEUS_PORT:-9090}"
+
+  obs:down:
+    desc: "Остановить observability стек"
+    cmds:
+      - docker compose stop prometheus grafana loki promtail tempo node-exporter cadvisor
+
+  obs:status:
+    desc: "Статус observability сервисов"
+    cmds:
+      - docker compose ps prometheus grafana loki promtail tempo node-exporter cadvisor
+
+  obs:logs:
+    desc: "Логи observability стека"
+    cmds:
+      - docker compose logs -f --tail=100 prometheus grafana loki promtail tempo
+
+  # ---------------------------------------------------------------------------
+  # Тесты
+  # ---------------------------------------------------------------------------
+
+  test:
+    desc: "Запустить все тесты (модульные + интеграционные)"
+    cmds:
+      - task: test:unit
+      - task: test:api
+
+  test:unit:
+    desc: "Модульные тесты всех сервисов (без docker; требует uv)"
+    vars:
+      UV: '{{if eq (env "UV") ""}}{{.HOME}}/.local/bin/uv{{else}}{{env "UV"}}{{end}}'
+    cmds:
+      - command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
+      - cd services/nlp-parser        && {{.UV}} run --extra dev pytest -ra --tb=short
+      - cd services/realestate        && {{.UV}} run --extra dev pytest -ra --tb=short
+      - cd services/metrics           && {{.UV}} run --extra dev pytest -ra --tb=short
+      - cd services/_shared/redis_lib && {{.UV}} run --extra dev pytest -ra --tb=short
+
+  test:api:
+    desc: "Интеграционные API-тесты (требует запущенного стека: task up)"
+    vars:
+      UV: '{{if eq (env "UV") ""}}{{.HOME}}/.local/bin/uv{{else}}{{env "UV"}}{{end}}'
+    cmds:
+      - command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
+      - cd tests && {{.UV}} run --with httpx --with pytest pytest -ra --tb=short
+
+  test:ml:
+    desc: "Тесты ML-модуля (пайплайны, геокодирование, контракты)"
+    cmds:
+      - cd model && pip install -q -r requirements.txt && python -m pytest tests/ -ra --tb=short
+
   psql:
     desc: psql в postgres-контейнер
     cmds:

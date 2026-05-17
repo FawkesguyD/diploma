@@ -1,0 +1,253 @@
+{
+  "uid": "aio-logging",
+  "title": "AIO Logging",
+  "description": "Все логи АИС: авторизация, запросы, ошибки, бизнес-события",
+  "tags": ["ais", "logs", "loki"],
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Сервис",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values(service)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
+      },
+      {
+        "name": "level",
+        "label": "Уровень",
+        "type": "custom",
+        "options": [
+          { "text": "All",   "value": "info|error", "selected": true },
+          { "text": "ERROR", "value": "error" },
+          { "text": "INFO",  "value": "info" }
+        ],
+        "current": { "text": "All", "value": "info|error" }
+      },
+      {
+        "name": "search",
+        "label": "Поиск",
+        "type": "textbox",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Log Rate by Level",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 16, "h": 6 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "lineWidth": 2, "fillOpacity": 20 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "error" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "info" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "expr": "sum by(level) (rate({project=\"diploma\", service=~\"$service\", level=~\"$level\"}[1m]))",
+          "legendFormat": "{{level}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Errors (last hour)",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 3 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red",   "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "textMode": "value_and_name" },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({project=\"diploma\", level=\"error\"}[$__range]))",
+          "legendFormat": "Errors",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Auth Events (last hour)",
+      "type": "stat",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 3 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "green" }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["sum"] } },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({project=\"diploma\"} |= \"user_login\" [$__range]))",
+          "legendFormat": "Logins",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Errors per Service",
+      "type": "bargauge",
+      "gridPos": { "x": 16, "y": 3, "w": 8, "h": 3 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red",   "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["sum"] } },
+      "targets": [
+        {
+          "expr": "sum by(service) (count_over_time({project=\"diploma\", level=\"error\"}[$__range]))",
+          "legendFormat": "{{service}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Live Log Stream",
+      "type": "logs",
+      "gridPos": { "x": 0, "y": 6, "w": 24, "h": 14 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "expr": "{project=\"diploma\", service=~\"$service\", level=~\"$level\"} $search",
+          "legendFormat": "",
+          "refId": "A",
+          "maxLines": 500
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Бизнес-события",
+      "gridPos": { "x": 0, "y": 20, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 21,
+      "title": "Авторизация",
+      "type": "logs",
+      "gridPos": { "x": 0, "y": 21, "w": 12, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "expr": "{project=\"diploma\"} |~ \"(?i)(login|logout|auth|token|register|unauthorized|forbidden|user_login|user_logout)\"",
+          "legendFormat": "",
+          "refId": "A",
+          "maxLines": 200
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "Запись в БД",
+      "type": "logs",
+      "gridPos": { "x": 12, "y": 21, "w": 12, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "expr": "{project=\"diploma\"} |~ \"(?i)(INSERT|UPDATE|DELETE|inserted|updated|saved|created|db_write|mongo|postgres|clickhouse)\"",
+          "legendFormat": "",
+          "refId": "A",
+          "maxLines": 200
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "ML-события (predict / model-run)",
+      "type": "logs",
+      "gridPos": { "x": 0, "y": 29, "w": 24, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "expr": "{project=\"diploma\"} |~ \"(?i)(model_run|predict|score|rank|worker|task=|model_loaded|model_kind)\"",
+          "legendFormat": "",
+          "refId": "A",
+          "maxLines": 200
+        }
+      ]
+    }
+  ]
+}

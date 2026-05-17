@@ -1,0 +1,51 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["com.docker.compose.project=diploma"]
+    relabel_configs:
+      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
+        target_label: service
+      - source_labels: [__meta_docker_container_label_com_docker_compose_project]
+        target_label: project
+      - source_labels: [__meta_docker_container_name]
+        regex: /(.*)
+        target_label: container
+    pipeline_stages:
+      # ── Try JSON parse first (FastAPI structured logs) ─────────────
+      - json:
+          expressions:
+            level: level
+            trace_id: trace_id
+            user_id: user_id
+            event: event
+          drop_malformed: false
+      # ── Regex fallback for plain uvicorn/Python log lines ──────────
+      - regex:
+          expression: '(?i)(?:^|"level":"?)(?P<level_raw>INFO|WARNING|ERROR|DEBUG|CRITICAL)'
+      # ── Merge: use extracted level, fall back to level_raw ─────────
+      - template:
+          source: level
+          template: '{{ if .Value }}{{ ToLower .Value }}{{ else }}{{ ToLower .level_raw }}{{ end }}'
+      # ── Drop DEBUG and WARNING to reduce noise ─────────────────────
+      - drop:
+          source: level
+          expression: '^(debug|warning)$'
+      # ── Promote to stream labels ───────────────────────────────────
+      - labels:
+          level:
+          service:
+          project:

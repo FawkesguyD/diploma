@@ -6,15 +6,15 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 
+from aisi_obs import configure_logging, configure_tracing, instrument_app
+
 from .config import get_settings
 from .db import SourcesRepo
 from .loop import SchedulerLoop
 from .publisher import ParserPublisher
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
+configure_logging("scheduler")
+configure_tracing("scheduler")
 
 
 @asynccontextmanager
@@ -36,6 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="scheduler", lifespan=lifespan)
+instrument_app(app, "scheduler")
 
 
 @app.get("/healthz")

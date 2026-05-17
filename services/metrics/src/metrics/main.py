@@ -30,9 +30,11 @@ from metrics.consumer import (
     make_messages_consumer,
     make_prices_consumer,
 )
+from aisi_obs import configure_logging, configure_tracing, instrument_app
 
+configure_logging("metrics")
+configure_tracing("metrics")
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
 
 @asynccontextmanager
@@ -73,6 +75,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="AIS metrics", version="0.1.0", lifespan=lifespan)
+instrument_app(app, "metrics")
 app.include_router(overview_router)
 app.include_router(prices_router)
 app.include_router(topics_router)

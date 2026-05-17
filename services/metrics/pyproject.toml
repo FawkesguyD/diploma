@@ -14,6 +14,7 @@ dependencies = [
     "aiohttp>=3.9",
     "orjson>=3.10",
     "aisi-contracts",
+    "aisi-obs",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +34,7 @@ packages = ["src/metrics"]
 
 [tool.uv.sources]
 aisi-contracts = { path = "../_shared/contracts", editable = true }
+aisi-obs = { path = "../_shared/observability", editable = true }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

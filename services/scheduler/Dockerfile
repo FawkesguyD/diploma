@@ -18,11 +18,13 @@ RUN pip install --no-cache-dir "uv>=0.5,<0.6"
 WORKDIR /opt/build
 
 COPY services/_shared/contracts /opt/build/_shared/contracts
+COPY services/_shared/observability /opt/build/_shared/observability
 COPY services/scheduler/pyproject.toml /opt/build/scheduler/pyproject.toml
 
 RUN uv venv /opt/venv \
  && . /opt/venv/bin/activate \
  && uv pip install --python /opt/venv/bin/python /opt/build/_shared/contracts \
+ && uv pip install --python /opt/venv/bin/python /opt/build/_shared/observability \
  && uv pip install --python /opt/venv/bin/python \
         "fastapi>=0.110" "uvicorn[standard]>=0.27" \
         "pydantic>=2.6" "pydantic-settings>=2.2" \

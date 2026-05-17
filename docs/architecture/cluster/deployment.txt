@@ -1,0 +1,81 @@
+@startuml deployment_4hosts
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam roundCorner 8
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam linetype ortho
+skinparam componentStyle rectangle
+
+node "Хост 1  ·  Балансировщик" as host1 {
+  component "traefik  :80 / :443" as traefik
+}
+
+together {
+  node "Хост 2  ·  Приложение А" as host2 {
+    component "frontend (nginx)" as fe_a
+    package "FastAPI-сервисы А" {
+      component "realestate" as re_a
+      component "nlp-parser" as nlp_a
+      component "metrics"    as met_a
+    }
+    package "Брокеры А" {
+      component "rabbitmq :5672" as rmq_a
+      component "kafka :9092"   as kfk_a
+    }
+  }
+
+  node "Хост 3  ·  Приложение Б  (зеркало)" as host3 {
+    component "frontend (nginx) " as fe_b
+    package "FastAPI-сервисы Б" {
+      component "realestate " as re_b
+      component "nlp-parser " as nlp_b
+      component "metrics "    as met_b
+    }
+    package "Брокеры Б" {
+      component "rabbitmq :5672 " as rmq_b
+      component "kafka :9092 "   as kfk_b
+    }
+  }
+}
+
+node "Хост 4  ·  Общие хранилища" as host4 {
+  database "postgres\n:5432"         as pg
+  database "mongodb\n:27017"         as mongo
+  database "clickhouse\n:8123/:9000" as ch
+  database "minio\n:9000/:9001"      as minio
+  database "redis\n:6379"            as redis
+}
+
+' --- Балансировщик → плечи ---
+traefik -down-> fe_a
+traefik -down-> fe_b
+
+' --- Внутренние связи А ---
+re_a  -right-> rmq_a
+nlp_a -right-> rmq_a
+re_a  ..> kfk_a : metrics
+nlp_a ..> kfk_a : metrics
+kfk_a -right-> met_a
+
+' --- Внутренние связи Б ---
+re_b  -right-> rmq_b
+nlp_b -right-> rmq_b
+re_b  ..> kfk_b : metrics
+nlp_b ..> kfk_b : metrics
+kfk_b -right-> met_b
+
+' --- Плечи → хранилища (якорные стрелки для layout) ---
+host2 -down-> host4
+host3 -down-> host4
+
+' --- Скрытая связь для выравнивания host4 по центру ---
+host2 -[hidden]right-> host3
+
+note bottom of host4
+  realestate → postgres, mongodb, minio, redis (dedup)
+  nlp-parser → postgres, mongodb, redis (dedup)
+  metrics    → clickhouse, postgres
+end note
+
+@enduml

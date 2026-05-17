@@ -14,9 +14,12 @@ from dataclasses import dataclass
 from typing import Any
 
 # Импорты из научного кода — в Dockerfile эта папка кладётся под /app/vendor/model/ml.
-# locally можно прокинуть через PYTHONPATH или editable-install.
-from model.ml.model.inference import predict_proxy_valuation_from_bundle
-from model.ml.model.persistence import LoadedModelBundle, load_model_bundle
+# Locally: добавить корень репо в PYTHONPATH или editable-install пакета model.
+# Импорт ленивый чтобы сам модуль импортировался без model в окружении.
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from model.ml.model.persistence import LoadedModelBundle
 
 from realestate.ml.loader import ModelArtifact
 
@@ -63,10 +66,11 @@ class ModelHolder:
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
-        self._bundle: LoadedModelBundle | None = None
+        self._bundle: "LoadedModelBundle | None" = None
         self._artifact: ModelArtifact | None = None
 
     def load(self, artifact: ModelArtifact) -> None:
+        from model.ml.model.persistence import load_model_bundle  # lazy
         bundle = load_model_bundle(artifact.local_path)
         with self._lock:
             self._bundle = bundle
@@ -83,7 +87,7 @@ class ModelHolder:
             return self._artifact
 
     @property
-    def bundle(self) -> LoadedModelBundle:
+    def bundle(self) -> "LoadedModelBundle":
         with self._lock:
             if self._bundle is None:
                 raise RuntimeError("Модель не загружена — вызовите ModelHolder.load() при старте.")
@@ -127,6 +131,7 @@ def object_to_features(object_doc: dict[str, Any]) -> dict[str, Any]:
 
 
 def predict(holder: ModelHolder, object_doc: dict[str, Any]) -> PredictionResult:
+    from model.ml.model.inference import predict_proxy_valuation_from_bundle  # lazy
     features = object_to_features(object_doc)
     response = predict_proxy_valuation_from_bundle(features, holder.bundle, include_explanation=False)
     predicted = float(response["predicted_price_rub"])

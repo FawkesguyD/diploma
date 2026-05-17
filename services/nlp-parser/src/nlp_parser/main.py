@@ -19,9 +19,11 @@ from nlp_parser.persistence.mongo import MongoClient
 from nlp_parser.persistence.postgres import PostgresClient
 from nlp_parser.pubsub import MessagePubSub
 from nlp_parser.worker import NlpParserWorker
+from aisi_obs import configure_logging, configure_tracing, instrument_app
 
+configure_logging("nlp-parser")
+configure_tracing("nlp-parser")
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
 
 @asynccontextmanager
@@ -78,6 +80,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="AIS nlp-parser", version="0.1.0", lifespan=lifespan)
+instrument_app(app, "nlp-parser")
 app.include_router(auth_router)
 app.include_router(sources_router)
 app.include_router(messages_router)

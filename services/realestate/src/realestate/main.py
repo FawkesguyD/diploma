@@ -18,6 +18,7 @@ from uuid import UUID
 import aio_pika
 from fastapi import FastAPI
 
+from aisi_obs import configure_logging, configure_tracing, instrument_app
 from realestate.api.model_runs import router as model_runs_router
 from realestate.api.objects import router as objects_router
 from realestate.config import Settings, get_settings
@@ -28,8 +29,9 @@ from realestate.persistence.mongo import MongoClient
 from realestate.persistence.postgres import ModelRegistryRepo, PostgresClient
 from realestate.worker import RealestateWorker
 
+configure_logging("realestate")
+configure_tracing("realestate")
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
 
 
 async def _load_active_model(
@@ -115,6 +117,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="AIS realestate", version="0.1.0", lifespan=lifespan)
+instrument_app(app, "realestate")
 app.include_router(objects_router)
 app.include_router(model_runs_router)
 

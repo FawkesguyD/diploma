@@ -16,7 +16,7 @@ def test_stub_returns_listings_without_filters():
     items = _run(parse_source(SOURCE_ID, None))
     assert len(items) >= 3
     for item in items:
-        assert item["source_id"] == SOURCE_ID
+        assert item["source_id"] == str(SOURCE_ID)
         assert item["external_id"]
         assert item["channel_site"]
         assert item["object_kind"] == "residential"
